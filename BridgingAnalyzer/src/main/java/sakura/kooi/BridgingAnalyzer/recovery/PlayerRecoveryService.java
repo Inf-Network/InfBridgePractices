@@ -307,7 +307,8 @@ public final class PlayerRecoveryService {
         return true;
     }
 
-    private void restorePreferredLoadout(Player player, Counter counter) {
+    /** Restore exactly one loadout: checkpoint chest when present, otherwise the default kit. */
+    public void restorePreferredLoadout(Player player, Counter counter) {
         PreferredLoadoutRestorer.restore(
                 () -> counter != null && counter.restoreCheckPointLoadout(player),
                 () -> runSafely(player, "恢复默认练习物品",

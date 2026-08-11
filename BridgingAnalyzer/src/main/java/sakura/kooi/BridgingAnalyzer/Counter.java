@@ -190,7 +190,9 @@ public class Counter {
         // 找脚下的箱子,结果把刚存好的 checkPoint 一起改低了一格 ——
         // 之后每次回检查点都会落到绿宝石块自己所在的那一格里。
         this.checkPoint = loc.clone();
-        restoreCheckPointLoadout(player);
+        // 箱子是显式检查点套装（包括空箱子）；没有箱子时必须立刻恢复
+        // 出生时的默认练习方块，不能把玩家踩绿宝石前的物品原样留下。
+        BridgingAnalyzer.restorePreferredCheckPointLoadout(player, this);
     }
 
     /** @deprecated Use {@link #setCheckPoint(Location, Player)} with the current player. */
@@ -225,7 +227,14 @@ public class Counter {
             if (stack == null) continue;
             Utils.addItem(player.getInventory(), stack.clone());
         }
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+        try {
+            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+        } catch (RuntimeException ex) {
+            // Sound is cosmetic; it must not turn a successfully restored (possibly empty)
+            // chest kit into the default kit.
+            BridgingAnalyzer.getInstance().getLogger().warning(
+                    "播放检查点套装音效失败: " + ex.getMessage());
+        }
         return true;
     }
 

@@ -155,8 +155,19 @@ implements Listener {
 
     /** Restore the standard practice inventory after a successful teleport. */
     public static void restorePracticeLoadout(Player p) {
+        // Resolve the skin item before touching the inventory. A broken provider must not
+        // delete the player's current items and then fail to supply the replacement stack.
+        ItemStack practiceBlocks = blockSkinProvider.provide(p);
+        if (practiceBlocks == null || practiceBlocks.getType().isAir()) {
+            throw new IllegalStateException("方块皮肤提供器返回了空物品");
+        }
         BridgingAnalyzer.clearInventory(p);
-        p.getInventory().addItem(new ItemStack[]{blockSkinProvider.provide(p)});
+        p.getInventory().addItem(new ItemStack[]{practiceBlocks});
+    }
+
+    /** Apply the checkpoint chest when present, or the standard practice block otherwise. */
+    static void restorePreferredCheckPointLoadout(Player player, Counter counter) {
+        instance.recoveryService.restorePreferredLoadout(player, counter);
     }
 
     public static void refreshItem(Player p) {
