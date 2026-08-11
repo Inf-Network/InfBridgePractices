@@ -29,6 +29,7 @@ public final class PlayerRecoveryService {
     private final VoidSafetyPolicy safetyPolicy;
     private final Set<UUID> queuedRecoveries = new HashSet<>();
     private final Map<UUID, BukkitTask> recoveryTasks = new HashMap<>();
+    private final Map<UUID, BukkitTask> respawnLoadoutTasks = new HashMap<>();
     private final RecoveryFailureGate failureGate = new RecoveryFailureGate(MAX_TELEPORT_FAILURES);
     private final Map<UUID, Location> emergencyRespawns = new HashMap<>();
     private BukkitTask watchdogTask;
@@ -65,6 +66,10 @@ public final class PlayerRecoveryService {
             task.cancel();
         }
         recoveryTasks.clear();
+        for (BukkitTask task : respawnLoadoutTasks.values()) {
+            task.cancel();
+        }
+        respawnLoadoutTasks.clear();
         queuedRecoveries.clear();
         failureGate.clear();
         emergencyRespawns.clear();
@@ -93,13 +98,62 @@ public final class PlayerRecoveryService {
         if (task != null) {
             task.cancel();
         }
+        BukkitTask respawnTask = respawnLoadoutTasks.remove(playerId);
+        if (respawnTask != null) {
+            respawnTask.cancel();
+        }
         queuedRecoveries.remove(playerId);
         failureGate.recovered(playerId);
         emergencyRespawns.remove(playerId);
     }
 
+    /** A real death supersedes any fatal-damage/void teleport queued earlier in that tick. */
+    public void cancelPendingRecoveryForDeath(Player player) {
+        UUID playerId = player.getUniqueId();
+        BukkitTask task = recoveryTasks.remove(playerId);
+        if (task != null) {
+            task.cancel();
+        }
+        BukkitTask respawnTask = respawnLoadoutTasks.remove(playerId);
+        if (respawnTask != null) {
+            respawnTask.cancel();
+        }
+        queuedRecoveries.remove(playerId);
+        failureGate.recovered(playerId);
+    }
+
     public Location recoveryLocation(Player player) {
         return safeTarget(BridgingAnalyzer.getCounter(player).getCheckPoint(), player.getWorld());
+    }
+
+    /** Restore inventory after Bukkit has finished applying the death respawn. */
+    public void scheduleRespawnLoadout(Player player) {
+        UUID playerId = player.getUniqueId();
+        BukkitTask previousTask = respawnLoadoutTasks.remove(playerId);
+        if (previousTask != null) {
+            previousTask.cancel();
+        }
+        try {
+            BukkitTask task = plugin.getServer().getScheduler().runTask(plugin, () -> {
+                respawnLoadoutTasks.remove(playerId);
+                Player currentPlayer = plugin.getServer().getPlayer(playerId);
+                if (currentPlayer == null || !currentPlayer.isOnline() || currentPlayer.isDead()) {
+                    return;
+                }
+                Counter counter = null;
+                try {
+                    counter = BridgingAnalyzer.getCounter(currentPlayer);
+                } catch (RuntimeException ex) {
+                    plugin.getLogger().warning("重生后无法读取 " + currentPlayer.getName()
+                            + " 的检查点套装: " + ex.getMessage());
+                }
+                restorePreferredLoadout(currentPlayer, counter);
+            });
+            respawnLoadoutTasks.put(playerId, task);
+        } catch (RuntimeException ex) {
+            plugin.getLogger().severe("无法排队恢复 " + player.getName()
+                    + " 的重生套装: " + ex.getMessage());
+        }
     }
 
     /** Queue one recovery for move, damage and watchdog events that may occur in the same tick. */
@@ -120,7 +174,7 @@ public final class PlayerRecoveryService {
             plugin.getLogger().severe("无法排队救援玩家 " + player.getName()
                     + ",正在立即重试: " + schedulingFailure.getMessage());
             Player currentPlayer = plugin.getServer().getPlayer(playerId);
-            if (currentPlayer != null) {
+            if (currentPlayer != null && !currentPlayer.isDead()) {
                 try {
                     if (recoverNow(currentPlayer)) {
                         failureGate.recovered(playerId);
@@ -141,7 +195,7 @@ public final class PlayerRecoveryService {
         recoveryTasks.remove(playerId);
         try {
             Player player = plugin.getServer().getPlayer(playerId);
-            if (player == null || !player.isOnline()) {
+            if (player == null || !player.isOnline() || player.isDead()) {
                 return;
             }
             if (recoverNow(player)) {
@@ -216,7 +270,7 @@ public final class PlayerRecoveryService {
 
     /** Immediate checkpoint teleport used by joins, commands and victory handling. */
     public boolean recoverNow(Player player) {
-        if (!player.isOnline()) {
+        if (!player.isOnline() || player.isDead()) {
             return false;
         }
 
@@ -249,11 +303,17 @@ public final class PlayerRecoveryService {
         runSafely(player, "设置救援保护", () -> player.setNoDamageTicks(Math.max(player.getNoDamageTicks(), 20)));
 
         Counter resolvedCounter = counter;
-        if (resolvedCounter != null) {
-            runSafely(player, "恢复检查点物品", () -> resolvedCounter.restoreCheckPointItems(player));
-        }
-        runSafely(player, "恢复练习物品", () -> BridgingAnalyzer.restorePracticeLoadout(player));
+        restorePreferredLoadout(player, resolvedCounter);
         return true;
+    }
+
+    private void restorePreferredLoadout(Player player, Counter counter) {
+        PreferredLoadoutRestorer.restore(
+                () -> counter != null && counter.restoreCheckPointLoadout(player),
+                () -> runSafely(player, "恢复默认练习物品",
+                        () -> BridgingAnalyzer.restorePracticeLoadout(player)),
+                ex -> plugin.getLogger().warning("玩家 " + player.getName()
+                        + " 的检查点套装恢复失败,改用默认练习方块: " + ex.getMessage()));
     }
 
     private boolean tryTeleport(Player player, Location target) {

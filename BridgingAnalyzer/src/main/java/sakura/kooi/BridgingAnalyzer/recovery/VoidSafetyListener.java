@@ -50,13 +50,17 @@ public final class VoidSafetyListener implements Listener {
         event.setRespawnLocation(emergencyLocation != null
                 ? emergencyLocation
                 : recoveryService.recoveryLocation(event.getPlayer()));
+        if (emergencyLocation == null
+                && event.getRespawnReason() == PlayerRespawnEvent.RespawnReason.DEATH) {
+            recoveryService.scheduleRespawnLoadout(event.getPlayer());
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
-    public void onEmergencyDeath(PlayerDeathEvent event) {
-        if (!recoveryService.isEmergencyRespawn(event.getEntity())) {
-            return;
-        }
+    public void onDeath(PlayerDeathEvent event) {
+        recoveryService.cancelPendingRecoveryForDeath(event.getEntity());
+        // Keep keys and avoid duplicating the old kit as drops; the selected
+        // checkpoint loadout is applied one tick after a normal death respawn.
         event.setKeepInventory(true);
         event.setKeepLevel(true);
         event.setShouldDropExperience(false);

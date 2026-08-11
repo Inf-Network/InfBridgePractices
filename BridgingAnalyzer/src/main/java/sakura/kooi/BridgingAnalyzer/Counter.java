@@ -190,16 +190,7 @@ public class Counter {
         // 找脚下的箱子,结果把刚存好的 checkPoint 一起改低了一格 ——
         // 之后每次回检查点都会落到绿宝石块自己所在的那一格里。
         this.checkPoint = loc.clone();
-        Block target = loc.clone().add(0.0, -1.0, 0.0).getBlock().getRelative(BlockFace.DOWN, 3);
-        if (target.getType() == Material.CHEST) {
-            BridgingAnalyzer.clearInventory(player);
-            Chest chest = (Chest)target.getState();
-            for (ItemStack stack : chest.getBlockInventory().getContents()) {
-                if (stack == null) continue;
-                Utils.addItem(player.getInventory(), stack.clone());
-            }
-            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
-        }
+        restoreCheckPointLoadout(player);
     }
 
     /** @deprecated Use {@link #setCheckPoint(Location, Player)} with the current player. */
@@ -218,18 +209,39 @@ public class Counter {
         return this.checkPoint.clone();
     }
 
-    /** Restore any special checkpoint chest items for the current live player instance. */
-    public void restoreCheckPointItems(Player player) {
-        Block target = this.checkPoint.getBlock().getRelative(BlockFace.DOWN, 3);
-        if (target.getType() == Material.CHEST) {
-            BridgingAnalyzer.clearInventory(player);
-            Chest chest = (Chest)target.getState();
-            for (ItemStack stack : chest.getBlockInventory().getContents()) {
-                if (stack == null) continue;
-                Utils.addItem(player.getInventory(), stack.clone());
-            }
-            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+    /**
+     * Restore the chest loadout belonging to this checkpoint.
+     *
+     * @return true when the checkpoint has a chest, including an intentionally empty chest
+     */
+    public boolean restoreCheckPointLoadout(Player player) {
+        Block target = getCheckPointLoadoutBlock();
+        if (target.getType() != Material.CHEST) {
+            return false;
         }
+        BridgingAnalyzer.clearInventory(player);
+        Chest chest = (Chest)target.getState();
+        for (ItemStack stack : chest.getBlockInventory().getContents()) {
+            if (stack == null) continue;
+            Utils.addItem(player.getInventory(), stack.clone());
+        }
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+        return true;
+    }
+
+    /** Compatibility facade retained for code compiled against the first modular release. */
+    public void restoreCheckPointItems(Player player) {
+        restoreCheckPointLoadout(player);
+    }
+
+    private Block getCheckPointLoadoutBlock() {
+        // Keep this identical to the lookup used when the emerald checkpoint is set.
+        return checkPointLoadoutBase(this.checkPoint)
+                .getBlock().getRelative(BlockFace.DOWN, 3);
+    }
+
+    static Location checkPointLoadoutBase(Location checkPoint) {
+        return checkPoint.clone().add(0.0, -1.0, 0.0);
     }
 
     /** @deprecated Use {@link BridgingAnalyzer#teleportCheckPoint(Player)}. */
