@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    BridgingSkin —— 搭路方块皮肤选择。给 BridgingAnalyzer 提供 BlockSkinProvider,
+    让玩家自选搭路用的方块(不装它时 BridgingAnalyzer 回退到平滑砂岩)。
+
+    上游: https://github.com/SakuraKoi/BridgingSkin (作者 SakuraKooi)
+    本目录是 v3 的 1.21.11 移植版,源码取自对 BlockSkin.disabled 的 CFR 反编译
+    —— 那个文件其实就是 BridgingSkin v3 的 jar,被重命名成 .disabled 关掉了。
+
+    注意:原服 1.8.8 的启动日志里没有 BridgingSkin,它当年就没在跑。
+    移植它属于恢复一个被停用的功能,不是还原线上现状。
+  -->
+  <groupId>sakura.kooi</groupId>
+  <artifactId>BridgingSkin</artifactId>
+  <version>3-1.21.11</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <repositories>
+    <repository>
+      <id>papermc</id>
+      <url>https://repo.papermc.io/repository/maven-public/</url>
+    </repository>
+  </repositories>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.papermc.paper</groupId>
+      <artifactId>paper-api</artifactId>
+      <version>1.21.11-R0.1-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!--
+      硬依赖(plugin.yml 里是 depend 而非 softdepend)。
+      需先在 ../BridgingAnalyzer 执行 mvn install 装进本地仓库。
+    -->
+    <dependency>
+      <groupId>sakura.kooi</groupId>
+      <artifactId>BridgingAnalyzer</artifactId>
+      <version>28-1.21.11</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!--
+      原版把 gson 整个 shade 进了 jar(sakura.lib.com.google.gson,69 个类)。
+      服务端 libraries/ 下已有 gson,改用 provided 依赖,不再随包分发。
+    -->
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.11.0</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+  </build>
+
+</project>

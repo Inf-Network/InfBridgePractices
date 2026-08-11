@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    BlockLv —— 搭路等级系统:放置方块累积经验、升级、Top10 排行榜全息。
+
+    原作者 luanmenglei(原服管理员),无公开源码,本项目源自对部署 jar 的
+    CFR 反编译。原版为 1.0,本移植版号 1.0-1.21.11。
+
+    与 BridgingAnalyzer 不同,这个插件没有上游可跟随,后续维护完全落在本仓库。
+  -->
+  <groupId>com.luanmenglei</groupId>
+  <artifactId>BlockLv</artifactId>
+  <version>1.0-1.21.11</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <repositories>
+    <repository>
+      <id>papermc</id>
+      <url>https://repo.papermc.io/repository/maven-public/</url>
+    </repository>
+    <!-- PlaceholderAPI 自建仓库 -->
+    <repository>
+      <id>extendedclip</id>
+      <url>https://repo.extendedclip.com/releases/</url>
+    </repository>
+    <!-- DecentHolograms 发布在 CodeMC -->
+    <repository>
+      <id>codemc</id>
+      <url>https://repo.codemc.io/repository/maven-public/</url>
+    </repository>
+  </repositories>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.papermc.paper</groupId>
+      <artifactId>paper-api</artifactId>
+      <version>1.21.11-R0.1-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- 提供 %blocklv_lv% / %blocklv_prefix% 等占位符 -->
+    <dependency>
+      <groupId>me.clip</groupId>
+      <artifactId>placeholderapi</artifactId>
+      <version>2.11.6</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!--
+      取代原版依赖的 HolographicDisplays,用于 Top10 排行榜全息。
+
+      DecentHolograms 没有发布到任何公共 Maven 仓库(CodeMC 上查不到),
+      因此直接把服务端里跑的那个 jar 装进本地仓库 —— 好处是编译期依赖与运行时
+      版本严格一致。克隆仓库后先执行 install-deps.sh。
+    -->
+    <dependency>
+      <groupId>eu.decentsoftware.holograms</groupId>
+      <artifactId>decentholograms</artifactId>
+      <version>2.10.1</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+  </build>
+
+</project>

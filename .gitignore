@@ -1,0 +1,13 @@
+.DS_Store
+target/
+*.log
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Local runtime data and credentials
+*.db
+**/plugins/*/config.yml
+**/plugins/BridgingSkin/skins/
