@@ -44,12 +44,10 @@ import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandExecutor;
-import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
-import org.bukkit.entity.Villager;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -86,8 +84,9 @@ import sakura.kooi.BridgingAnalyzer.recovery.PlayerRecoveryService;
 import sakura.kooi.BridgingAnalyzer.recovery.VoidSafetyListener;
 import sakura.kooi.BridgingAnalyzer.recovery.VoidSafetyPolicy;
 import sakura.kooi.BridgingAnalyzer.session.PlayerSessionRegistry;
+import sakura.kooi.BridgingAnalyzer.targets.PracticeTargetListener;
+import sakura.kooi.BridgingAnalyzer.targets.PracticeTargetService;
 import sakura.kooi.BridgingAnalyzer.trigger.MelonKnockbackController;
-import sakura.kooi.BridgingAnalyzer.utils.NoAIUtils;
 import sakura.kooi.BridgingAnalyzer.utils.TitleUtils;
 import sakura.kooi.BridgingAnalyzer.utils.Utils;
 
@@ -100,6 +99,7 @@ implements Listener {
     private static BlockSkinProvider blockSkinProvider;
     private PlayerRecoveryService recoveryService;
     private MelonKnockbackController melonKnockbackController;
+    private PracticeTargetService practiceTargetService;
 
     public static void clearEffect(Player player) {
         for (PotionEffect eff : player.getActivePotionEffects()) {
@@ -122,21 +122,7 @@ implements Listener {
     }
 
     public static void spawnVillager() {
-        for (Entity en : Bukkit.getWorld((String)"world").getEntities()) {
-            if (en.getType() != EntityType.VILLAGER || !"\u9776\u5b50".equals(en.getCustomName())) continue;
-            en.remove();
-        }
-        for (ArmorStand stand : Bukkit.getWorld((String)"world").getEntitiesByClass(ArmorStand.class)) {
-            if (stand.getCustomName() == null || !stand.getCustomName().contains("VillagerSpawnPoint")) continue;
-            Villager vi = (Villager)stand.getWorld().spawnEntity(stand.getLocation().add(0.0, 1.0, 0.0), EntityType.VILLAGER);
-            vi.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 32766, 254, false, false), true);
-            vi.setProfession(Villager.Profession.LIBRARIAN);
-            vi.setMaxHealth(1.0);
-            vi.setHealth(1.0);
-            vi.setCustomName("\u9776\u5b50");
-            vi.setCustomNameVisible(false);
-            NoAIUtils.setAI((Entity)vi, false);
-        }
+        instance.practiceTargetService.respawnAll();
     }
 
     /*
@@ -268,6 +254,7 @@ implements Listener {
         this.recoveryService = new PlayerRecoveryService(this,
                 new VoidSafetyPolicy(VoidSafetyPolicy.DEFAULT_FAILURE_HEIGHT));
         this.melonKnockbackController = new MelonKnockbackController(this, this.recoveryService);
+        this.practiceTargetService = new PracticeTargetService(this);
         PluginManager pluginManager = Bukkit.getPluginManager();
         pluginManager.registerEvents((Listener)this, (Plugin)this);
         pluginManager.registerEvents((Listener)new CounterListener(), (Plugin)this);
@@ -275,6 +262,7 @@ implements Listener {
         pluginManager.registerEvents((Listener)new TriggerBlockListener(), (Plugin)this);
         pluginManager.registerEvents((Listener)new VoidSafetyListener(this.recoveryService), (Plugin)this);
         pluginManager.registerEvents((Listener)this.melonKnockbackController, (Plugin)this);
+        pluginManager.registerEvents((Listener)new PracticeTargetListener(this, this.practiceTargetService), (Plugin)this);
         this.recoveryService.start();
         this.getCommand("bridge").setExecutor((CommandExecutor)new BridgeCommand());
         this.getCommand("clearblock").setExecutor((CommandExecutor)new ClearCommand());
@@ -286,7 +274,7 @@ implements Listener {
             if (Bukkit.getOnlinePlayers().isEmpty()) {
                 return;
             }
-            BridgingAnalyzer.spawnVillager();
+            this.practiceTargetService.reconcileAll();
         }, 300L, 300L);
         Bukkit.getConsoleSender().sendMessage(new String[]{"\u00a7bBridgingAnalyzer \u00a77>> \u00a7f----------------------------------------------------------------", "\u00a7bBridgingAnalyzer \u00a77>> \u00a7a\u642d\u8def\u7ec3\u4e60 \u5df2\u52a0\u8f7d \u00a7bBy.SakuraKooi", "\u00a7bBridgingAnalyzer \u00a77>> \u00a7chttps://github.com/SakuraKoi/BridgingAnalyzer/", "\u00a7bBridgingAnalyzer \u00a77>> \u00a7f----------------------------------------------------------------", "\u00a7bBridgingAnalyzer \u00a77>> \u00a7e\u8e29\u5728 \u00a7a\u7eff\u5b9d\u77f3\u5757 \u00a7e\u4e0a\u53ef\u4ee5\u8bbe\u7f6e\u4f20\u9001\u70b9", "\u00a7bBridgingAnalyzer \u00a77>> \u00a7e\u8e29\u5728 \u00a7c\u7ea2\u77f3\u5757 \u00a7e\u4e0a\u53ef\u4ee5\u56de\u5230\u4f20\u9001\u70b9", "\u00a7bBridgingAnalyzer \u00a77>> \u00a7e\u8e29\u5728 \u00a7b\u9752\u91d1\u77f3\u5757 \u00a7e\u4e0a\u53ef\u4ee5\u56de\u5230\u51fa\u751f\u70b9", "\u00a7bBridgingAnalyzer \u00a77>> \u00a7e\u4f7f\u7528 \u00a7a/genvillager \u00a7e\u53ef\u5728\u7ad9\u7acb\u4f4d\u7f6e\u521b\u5efa\u6751\u6c11\u5237\u65b0\u70b9", "\u00a7bBridgingAnalyzer \u00a77>> \u00a7c\u6389\u5165\u865a\u7a7a\u4f1a\u81ea\u52a8\u56de\u5230 \u00a7a\u4f20\u9001\u70b9 \u00a7c\u5e76\u91cd\u7f6e\u5730\u56fe", "\u00a7bBridgingAnalyzer \u00a77>> \u00a7c\u6ce8\u610f: \u521b\u9020\u6a21\u5f0f\u653e\u7f6e\u7684\u65b9\u5757\u4e0d\u4f1a\u88ab\u91cd\u7f6e, \u8bf7\u5728\u751f\u5b58\u6a21\u5f0f\u4e0b\u7ec3\u4e60", "\u00a7bBridgingAnalyzer \u00a77>> \u00a7f----------------------------------------------------------------"});
     }
