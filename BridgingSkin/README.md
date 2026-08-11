@@ -17,7 +17,7 @@ CFR 0.152 反编译 —— 那个文件其实就是 BridgingSkin v3 的 jar,被�
 
 | 改动 | 原因 |
 |---|---|
-| **删掉 `SkinSet.data` 字节字段** | 1.13 扁平化后方块变体各自是独立 `Material`,data 不再承载信息。存量数据由 `tools/migrate_skins.py` 一次性转换 |
+| **删掉 `SkinSet.data` 字节字段** | 1.13 扁平化后方块变体各自是独立 `Material`,data 不再承载信息。存量数据已在迁移时一次性转换 |
 | 10 处物料改名 | `DIODE`→`REPEATER`、`PISTON_BASE`→`PISTON`、`WOOD_PLATE`→`OAK_PRESSURE_PLATE` 等,见 `IllegalMaterial.java` |
 | 新增 `SkinSelectHolder`,不再比对菜单标题 | `Inventory#getTitle()` 1.14 起已移除(标题属于 `InventoryView`)。改用自定义 `InventoryHolder` 按类型识别,比字符串比对可靠,也不会被玩家用同名箱子骗过 |
 | 剥离内嵌 gson | 原版把整个 gson shade 进 jar(`sakura.lib.com.google.gson`,69 个类)。服务端 `libraries/` 下已有,改成 `provided` |
@@ -37,15 +37,8 @@ CFR 0.152 反编译 —— 那个文件其实就是 BridgingSkin v3 的 jar,被�
 ## 数据迁移
 
 原服 3175 份皮肤文件存的是 1.8 的 `{"Material": "SANDSTONE", "Data": 2}`。
-迁移脚本把 `(Material, Data)` 折叠成单个 1.21 的 Material 名并删掉 `Data` 键:
-
-```bash
-python tools/migrate_skins.py            # 只检查,打印转换前后统计
-python tools/migrate_skins.py --apply    # 真正写出
-```
-
-脚本对**未登记的 `(Material, Data)` 组合直接报错退出**,不做猜测 ——
-猜错会让老玩家的皮肤静默变样,而且没人会发现。
+迁移时将 `(Material, Data)` 折叠成单个 1.21 Material 名并删除 `Data` 键。
+未登记的组合不能靠猜测转换,否则会让老玩家的皮肤静默变样。
 
 实际数据里只有两种组合:`SANDSTONE:2`(6349 处)和 `DIAMOND_BLOCK:0`(2 处)。
 
@@ -53,14 +46,14 @@ python tools/migrate_skins.py --apply    # 真正写出
 
 ## 构建
 
-需要 JDK 21 与 Maven,且**先在 `../BridgingAnalyzer/` 执行 `mvn install`** ——
-`plugin.yml` 里是 `depend` 而非 `softdepend`,是硬依赖。
+项目使用 Gradle Kotlin DSL 与 JDK 21。`BridgingSkin` 通过项目依赖引用
+`BridgingAnalyzer`,Gradle 会自动按正确顺序构建。
 
 ```bash
-mvn package
+gradle -p .. :BridgingSkin:build
 ```
 
-产物 `target/BridgingSkin-3-1.21.11.jar`。
+产物 `build/libs/BridgingSkin-3-1.21.11.jar`。
 
 ## 命令与权限
 

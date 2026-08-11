@@ -1,5 +1,9 @@
 .DS_Store
+__MACOSX/
+._*
 target/
+build/
+.gradle/
 *.log
 
 # IDE files

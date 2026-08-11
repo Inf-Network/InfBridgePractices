@@ -20,7 +20,7 @@ v28** 的衍生作品,原作者 **SakuraKooi**,许可 **GNU GPL v2**(见 `LICENS
 移植原则:**只改因 API 变更而无法编译的地方,不动任何业务逻辑。**
 玩法行为必须与 2021 年的原版一致 —— 那是搭路服的立身之本。
 
-全部改动由 `port-1.21.py` 施加,可重复执行:
+移植中包含以下 API 兼容改动:
 
 | 改动 | 数量 | 原因 |
 |---|---|---|
@@ -182,17 +182,13 @@ Block target = loc.add(0.0, -1.0, 0.0).getBlock()...;   // Location#add 是就�
 
 ## 构建
 
-需要 JDK 21 与 Maven。
+项目使用 Gradle Kotlin DSL 与 JDK 21。
 
 ```bash
-mvn package
+gradle -p .. :BridgingAnalyzer:build
 ```
 
-产物 `target/BridgingAnalyzer-28-1.21.11.jar`,复制到 `server-1.21.11/plugins/` 即可。
-
-> Maven 首次运行会拉取依赖。`~/.m2/settings.xml` 里已配置阿里云镜像加速
-> Maven Central —— 注意 `mirrorOf` 必须是 `central` 而非 `*`,否则会把
-> `repo.papermc.io` 的请求也劫持过去,导致 `paper-api` 解析失败。
+产物 `build/libs/BridgingAnalyzer-28-1.21.11.jar`,复制到服务端 `plugins/` 即可。
 
 ## 提供的命令
 

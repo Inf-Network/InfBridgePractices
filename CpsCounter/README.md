@@ -23,13 +23,13 @@ ActionBar 文本经 `LegacyComponentSerializer` 解析 —— CPS 显示文本�
 
 ## 构建
 
-需要 JDK 21 与 Maven。
+项目使用 Gradle Kotlin DSL 与 JDK 21。
 
 ```bash
-mvn package
+gradle -p .. :CpsCounter:build
 ```
 
-产物 `target/CpsCounter-3-1.21.11.jar`。
+产物 `build/libs/CpsCounter-3-1.21.11.jar`。
 
 ## 命令与权限
 

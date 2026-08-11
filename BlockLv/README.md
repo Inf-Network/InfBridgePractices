@@ -98,14 +98,13 @@ java.lang.IllegalArgumentException: Experience progress must be between 0.0 and 
 
 ## 构建
 
-需要 JDK 21 与 Maven,且先执行过 `../install-deps.sh`
-(DecentHolograms 没有公共 Maven 坐标,需从服务端 jar 装进本地仓库)。
+项目使用 Gradle Kotlin DSL 与 JDK 21。Gradle 会自动下载编译依赖。
 
 ```bash
-mvn package
+gradle -p .. :BlockLv:build
 ```
 
-产物 `target/BlockLv-1.0-1.21.11.jar`。
+产物 `build/libs/BlockLv-1.0-1.21.11.jar`。
 
 ## 命令与占位符
 
