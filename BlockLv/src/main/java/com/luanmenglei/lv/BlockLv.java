@@ -141,7 +141,7 @@ public class BlockLv extends JavaPlugin {
         }
 
         try {
-            Database d = new Database(url, props);
+            Database d = new Database(url, props, this.getLogger());
             this.getLogger().info("数据库已连接(" + type + ")");
             return d;
         } catch (SQLException e) {
@@ -174,7 +174,8 @@ public class BlockLv extends JavaPlugin {
 
         // 先落盘在线玩家的数据,再关连接 —— 顺序颠倒会丢最后一次存档
         for (Player player : Bukkit.getOnlinePlayers()) {
-            this.database.set(player, PointManger.players.get(player.getUniqueId()));
+            this.database.set(player.getUniqueId(), player.getName(),
+                    PointManger.players.get(player.getUniqueId()));
         }
         this.database.close();
     }

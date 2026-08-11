@@ -39,6 +39,30 @@ CFR 0.152 反编译。原版号 `1.0`,移植版号 `1.0-1.21.11`。
 连接失败时插件**自我停用**,而不是带着 null 连接继续跑 —— 后者会让每次放方块、
 每次登录都抛 NPE,而等级数据一条都存不下来。
 
+### UniversalAuth 身份与旧数据迁移
+
+排行榜以认证完成后的 Bukkit `Player#getUniqueId()` 作为唯一玩家主键。使用
+UniversalAuth 时,这个值必须由 Velocity Modern Forwarding 转发为账号永久的
+`profileUuid`;临时 `frontUuid`、Mojang `premiumUuid` 和玩家名都不会作为主键。
+
+为了保留启用 UniversalAuth 前的等级数据:
+
+- UUID 未命中时,只会收养“UUID 精确等于 Bukkit `OfflinePlayer:<name>` 算法结果”的
+  同名旧记录,不会仅凭同名夺取另一个正式账号 UUID 的数据;
+- 若新的 `profileUuid` 行已经存在,旧记录与新记录比较 `(等级,当前经验)`,保留较高者,
+  不会把两边经验相加;
+- 旧表若只有自增 `id` 而没有 UUID,启动时会原样保留为
+  `blocklv_legacy_id`,创建 UUID 主键的新表,再在玩家认证登录时按唯一名字迁移;
+- 混合旧表若带有空值或非法 UUID,迁移会整体回滚并停用插件,要求先人工修复,
+  不会让无法映射的排行数据静默消失;
+- 遇到多条无法唯一确认的旧记录时,该会话会禁止写回,避免用 0 级数据覆盖旧档;
+- 玩家名只保存为排行榜显示名,UUID 命中后会自动刷新名字。
+
+后端必须禁止绕过 Velocity 直连。否则攻击者仍可能用离线模式名字进入后端,这不是
+业务数据库能够安全修复的身份边界。
+
+排行榜顺序为 `等级 DESC,当前经验 DESC,名字 ASC`;UUID 只负责识别账号,不参与名次计算。
+
 ### 全息:HolographicDisplays → DecentHolograms
 
 两者 API 完全不同,DecentHolograms 没有提供 HD 兼容层(只有一次性的数据转换

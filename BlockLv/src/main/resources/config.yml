@@ -17,6 +17,10 @@
 #
 # 建表语句和读写 SQL 两边通用,切换后端不需要改代码。
 # 从 sqlite 迁到 postgresql 的数据搬运见 docs/DEPLOY-UBUNTU.md。
+#
+# 使用 UniversalAuth 时必须启用 Velocity Modern Forwarding,并禁止玩家
+# 绕过代理直连后端。BlockLv 会把后端 Player#getUniqueId() 作为账号的
+# 永久 profileUuid;玩家名只用于排行榜显示和一次性的旧数据迁移。
 # ─────────────────────────────────────────────────────────────
 database:
   type: sqlite
