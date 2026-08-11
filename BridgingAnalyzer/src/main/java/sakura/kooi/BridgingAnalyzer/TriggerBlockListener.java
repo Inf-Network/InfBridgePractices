@@ -29,7 +29,6 @@ import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
@@ -38,7 +37,6 @@ import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.util.Vector;
 import sakura.kooi.BridgingAnalyzer.BridgingAnalyzer;
 import sakura.kooi.BridgingAnalyzer.Counter;
 import sakura.kooi.BridgingAnalyzer.utils.FireworkUtils;
@@ -63,13 +61,6 @@ implements Listener {
                 }, 100L);
             }
         }
-    }
-
-    private Vector getAttackVector(Location location) {
-        double ran = 90.0 + Math.random() * 30.0 - 15.0;
-        float newZ = (float)(location.getZ() + 3.0 * Math.sin(Math.toRadians((double)location.getYaw() + ran)));
-        float newX = (float)(location.getX() + 3.0 * Math.cos(Math.toRadians((double)location.getYaw() + ran)));
-        return new Vector((double)newX - location.getX(), 0.0, (double)newZ - location.getZ());
     }
 
     private boolean isTriggerBlock(Block b) {
@@ -102,7 +93,7 @@ implements Listener {
             spawnLoc.setYaw(e.getPlayer().getLocation().getYaw());
             spawnLoc.setPitch(e.getPlayer().getLocation().getPitch());
             Counter c = BridgingAnalyzer.getCounter(e.getPlayer());
-            c.setCheckPoint(spawnLoc);
+            c.setCheckPoint(spawnLoc, e.getPlayer());
             new ParticleRing(e.getTo().getBlock().getLocation().add(0.5, 1.5, 0.5), Particle.CLOUD, 1L){
 
                 @Override
@@ -134,35 +125,9 @@ implements Listener {
                     FireworkUtils.shootFirework(e.getPlayer());
                 }
             };
-            BridgingAnalyzer.getCounter(e.getPlayer()).vectoryBreakBlock();
+            BridgingAnalyzer.getCounter(e.getPlayer()).vectoryBreakBlock(e.getPlayer());
             TitleUtils.sendTitle(e.getPlayer(), "\u00a76\u00a7lVICTORY", "", 5, 20, 5);
             e.getPlayer().getWorld().playSound(e.getTo(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
-        }
-    }
-
-    @EventHandler
-    public void triggerKnockbackBlock(PlayerMoveEvent e) {
-        if (e.getFrom().getBlock().equals(e.getTo().getBlock())) {
-            return;
-        }
-        if (e.getPlayer().getNoDamageTicks() != 0) {
-            return;
-        }
-        if (e.getPlayer().getGameMode() != GameMode.SURVIVAL) {
-            return;
-        }
-        if (e.getTo().getBlock().getRelative(BlockFace.DOWN).getType() == Material.MELON) {
-            e.getPlayer().setNoDamageTicks(20);
-            Player player = e.getPlayer();
-            Vector finalVector = this.getAttackVector(player.getLocation());
-            Location finalAttackFrom = player.getLocation().add(finalVector);
-            finalAttackFrom.setY(player.getLocation().getY() + 1.2);
-            Vector normalize = finalAttackFrom.toVector().subtract(player.getLocation().toVector()).normalize();
-            Bukkit.getScheduler().runTaskLater((Plugin)BridgingAnalyzer.getInstance(), () -> {
-                player.setNoDamageTicks(0);
-                player.damage(0.0);
-                player.setVelocity(normalize.multiply(-1.25).setY(0.45));
-            }, 7L);
         }
     }
 
@@ -180,7 +145,7 @@ implements Listener {
         if (e.getTo().getBlock().getRelative(BlockFace.DOWN).getType() == Material.LAPIS_BLOCK) {
             e.getPlayer().setNoDamageTicks(40);
             Counter c = BridgingAnalyzer.getCounter(e.getPlayer());
-            c.setCheckPoint(Bukkit.getWorld((String)"world").getSpawnLocation().add(0.5, 1.0, 0.5));
+            c.setCheckPoint(Bukkit.getWorld((String)"world").getSpawnLocation().add(0.5, 1.0, 0.5), e.getPlayer());
             c.resetMax();
             new ParticleRing(e.getTo().getBlock().getLocation().add(0.5, 1.5, 0.5), Particle.FIREWORK, 35L){
 

@@ -17,6 +17,7 @@ package sakura.kooi.BridgingAnalyzer;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.Location;
@@ -42,14 +43,27 @@ public class Counter {
     private ArrayList<Block> allBlock = new ArrayList();
     private Block lastBlock;
     private Location checkPoint = Bukkit.getWorld((String)"world").getSpawnLocation().add(0.5, 1.0, 0.5);
-    private Player player;
     private boolean speedCountEnabled = true;
     private boolean PvPEnabled = false;
     private boolean highlightEnabled = true;
     private boolean standBridgeMarkerEnabled = false;
+    private final UUID ownerId;
 
-    public Counter(Player p) {
-        this.player = p;
+    public Counter() {
+        this.ownerId = null;
+    }
+
+    public Counter(UUID ownerId) {
+        this.ownerId = ownerId;
+    }
+
+    /**
+     * Compatibility constructor for extensions compiled against older releases.
+     * Only the UUID is retained; the reconnect-sensitive Player wrapper is not.
+     */
+    @Deprecated
+    public Counter(Player player) {
+        this(player.getUniqueId());
     }
 
     public void addLogBlock(Block block) {
@@ -171,21 +185,32 @@ public class Counter {
         this.maxLength = 0;
     }
 
-    public void setCheckPoint(Location loc) {
+    public void setCheckPoint(Location loc, Player player) {
         // 必须 clone。Location#add 是就地修改的,原版直接拿传进来的 loc 去 add(0,-1,0)
         // 找脚下的箱子,结果把刚存好的 checkPoint 一起改低了一格 ——
         // 之后每次回检查点都会落到绿宝石块自己所在的那一格里。
         this.checkPoint = loc.clone();
         Block target = loc.clone().add(0.0, -1.0, 0.0).getBlock().getRelative(BlockFace.DOWN, 3);
         if (target.getType() == Material.CHEST) {
-            BridgingAnalyzer.clearInventory(this.player);
+            BridgingAnalyzer.clearInventory(player);
             Chest chest = (Chest)target.getState();
             for (ItemStack stack : chest.getBlockInventory().getContents()) {
                 if (stack == null) continue;
-                Utils.addItem(this.player.getInventory(), stack.clone());
+                Utils.addItem(player.getInventory(), stack.clone());
             }
-            this.player.getWorld().playSound(this.player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
         }
+    }
+
+    /** @deprecated Use {@link #setCheckPoint(Location, Player)} with the current player. */
+    @Deprecated
+    public void setCheckPoint(Location loc) {
+        Player player = currentPlayer();
+        if (player == null) {
+            this.checkPoint = loc.clone();
+            return;
+        }
+        setCheckPoint(loc, player);
     }
 
     /** 当前检查点(绿宝石块设的传送点;从未设过则是世界出生点)。返回副本,防止调用方就地改坏。 */
@@ -193,20 +218,36 @@ public class Counter {
         return this.checkPoint.clone();
     }
 
-    public void teleportCheckPoint() {        this.player.teleport(this.checkPoint);
+    /** Restore any special checkpoint chest items for the current live player instance. */
+    public void restoreCheckPointItems(Player player) {
         Block target = this.checkPoint.getBlock().getRelative(BlockFace.DOWN, 3);
         if (target.getType() == Material.CHEST) {
-            BridgingAnalyzer.clearInventory(this.player);
+            BridgingAnalyzer.clearInventory(player);
             Chest chest = (Chest)target.getState();
             for (ItemStack stack : chest.getBlockInventory().getContents()) {
                 if (stack == null) continue;
-                Utils.addItem(this.player.getInventory(), stack.clone());
+                Utils.addItem(player.getInventory(), stack.clone());
             }
-            this.player.getWorld().playSound(this.player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
+            player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);
         }
     }
 
-    public void vectoryBreakBlock() {
+    /** @deprecated Use {@link BridgingAnalyzer#teleportCheckPoint(Player)}. */
+    @Deprecated
+    public void teleportCheckPoint() {
+        Player player = currentPlayer();
+        if (player != null) {
+            BridgingAnalyzer.teleportCheckPoint(player);
+        }
+    }
+
+    public void vectoryBreakBlock(Player player) {
+        prepareVictoryBlocks();
+        BridgingAnalyzer.teleportCheckPoint(player);
+        this.breakBlock();
+    }
+
+    private void prepareVictoryBlocks() {
         this.counterCPS.clear();
         this.counterBridge.clear();
         this.currentLength = 0;
@@ -214,8 +255,21 @@ public class Counter {
             if (b.getType() == Material.AIR) continue;
             b.setType(Material.SEA_LANTERN);
         }
-        BridgingAnalyzer.teleportCheckPoint(this.player);
+    }
+
+    /** @deprecated Use {@link #vectoryBreakBlock(Player)} with the current player. */
+    @Deprecated
+    public void vectoryBreakBlock() {
+        Player player = currentPlayer();
+        prepareVictoryBlocks();
+        if (player != null) {
+            BridgingAnalyzer.teleportCheckPoint(player);
+        }
         this.breakBlock();
+    }
+
+    private Player currentPlayer() {
+        return this.ownerId == null ? null : Bukkit.getPlayer(this.ownerId);
     }
 
     public boolean isSpeedCountEnabled() {

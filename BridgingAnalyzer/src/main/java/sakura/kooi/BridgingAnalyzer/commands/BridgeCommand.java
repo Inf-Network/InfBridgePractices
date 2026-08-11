@@ -58,7 +58,7 @@ implements CommandExecutor {
                 break;
             }
             case "reset": {
-                counter.setCheckPoint(Bukkit.getWorld((String)"world").getSpawnLocation().add(0.5, 1.0, 0.5));
+                counter.setCheckPoint(Bukkit.getWorld((String)"world").getSpawnLocation().add(0.5, 1.0, 0.5), (Player)sender);
                 break;
             }
             case "remove": {
@@ -86,4 +86,3 @@ implements CommandExecutor {
         return true;
     }
 }
-

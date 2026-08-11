@@ -37,6 +37,7 @@
  */
 package sakura.kooi.BridgingAnalyzer;
 
+import java.util.Collection;
 import java.util.HashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -50,6 +51,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.Villager;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -80,6 +82,11 @@ import sakura.kooi.BridgingAnalyzer.commands.ClearCommand;
 import sakura.kooi.BridgingAnalyzer.commands.SaveWorldCommand;
 import sakura.kooi.BridgingAnalyzer.commands.StuckCommand;
 import sakura.kooi.BridgingAnalyzer.commands.VillagerSpawnPointCommand;
+import sakura.kooi.BridgingAnalyzer.recovery.PlayerRecoveryService;
+import sakura.kooi.BridgingAnalyzer.recovery.VoidSafetyListener;
+import sakura.kooi.BridgingAnalyzer.recovery.VoidSafetyPolicy;
+import sakura.kooi.BridgingAnalyzer.session.PlayerSessionRegistry;
+import sakura.kooi.BridgingAnalyzer.trigger.MelonKnockbackController;
 import sakura.kooi.BridgingAnalyzer.utils.NoAIUtils;
 import sakura.kooi.BridgingAnalyzer.utils.TitleUtils;
 import sakura.kooi.BridgingAnalyzer.utils.Utils;
@@ -88,9 +95,11 @@ public class BridgingAnalyzer
 extends JavaPlugin
 implements Listener {
     private static BridgingAnalyzer instance;
-    private static HashMap<Player, Counter> counters;
+    private static final PlayerSessionRegistry sessions = new PlayerSessionRegistry();
     private static HashMap<Block, MaterialData> placedBlocks;
     private static BlockSkinProvider blockSkinProvider;
+    private PlayerRecoveryService recoveryService;
+    private MelonKnockbackController melonKnockbackController;
 
     public static void clearEffect(Player player) {
         for (PotionEffect eff : player.getActivePotionEffects()) {
@@ -109,12 +118,7 @@ implements Listener {
     }
 
     public static Counter getCounter(Player p) {
-        Counter c = counters.get(p);
-        if (c == null) {
-            c = new Counter(p);
-            counters.put(p, c);
-        }
-        return c;
+        return sessions.get(p);
     }
 
     public static void spawnVillager() {
@@ -146,19 +150,17 @@ implements Listener {
      * 改成传送优先:先把人拉回来,再做背包与状态这些收尾。
      */
     public static void teleportCheckPoint(Player p) {
-        p.setFallDistance(0.0f);
-        BridgingAnalyzer.getCounter(p).teleportCheckPoint();
-        p.setGameMode(GameMode.SURVIVAL);
-        p.setFoodLevel(20);
-        p.setHealth(20.0);
-        p.setNoDamageTicks(5);
+        instance.recoveryService.recoverNow(p);
+    }
+
+    /** Restore the standard practice inventory after a successful teleport. */
+    public static void restorePracticeLoadout(Player p) {
         BridgingAnalyzer.clearInventory(p);
         p.getInventory().addItem(new ItemStack[]{blockSkinProvider.provide(p)});
     }
 
     public static void refreshItem(Player p) {
-        BridgingAnalyzer.clearInventory(p);
-        p.getInventory().addItem(new ItemStack[]{blockSkinProvider.provide(p)});
+        BridgingAnalyzer.restorePracticeLoadout(p);
     }
 
     public static boolean isPlacedByPlayer(Block b) {
@@ -196,7 +198,10 @@ implements Listener {
 
     @EventHandler
     public void logoutBreak(PlayerQuitEvent e) {
-        BridgingAnalyzer.getCounter(e.getPlayer()).instantBreakBlock();
+        Counter counter = sessions.getIfPresent(e.getPlayer());
+        if (counter != null) {
+            counter.instantBreakBlock();
+        }
         Bukkit.getConsoleSender().sendMessage("\u00a7bBridgingAnalyzer \u00a77>> \u00a7a\u73a9\u5bb6 " + e.getPlayer().getName() + " \u79bb\u7ebf, \u5df2\u6e05\u9664\u5176\u653e\u7f6e\u7684\u65b9\u5757.");
     }
 
@@ -205,28 +210,37 @@ implements Listener {
         e.setFoodLevel(20);
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onDamage(EntityDamageEvent e) {
-        if (e.getEntity().getType() == EntityType.PLAYER) {
-            Counter c = BridgingAnalyzer.getCounter((Player)e.getEntity());
+        if (e.getEntity() instanceof Player player) {
             if (e.getFinalDamage() > 20.0) {
-                c.reset();
-                BridgingAnalyzer.teleportCheckPoint((Player)e.getEntity());
-                TitleUtils.sendTitle((Player)e.getEntity(), "", "\u00a74\u81f4\u547d\u4f24\u5bb3 - " + Utils.formatDouble(e.getFinalDamage() / 2.0) + " \u2764", 10, 20, 10);
+                this.recoveryService.requestFailureRecovery(player);
+                try {
+                    TitleUtils.sendTitle(player, "", "\u00a74\u81f4\u547d\u4f24\u5bb3 - "
+                            + Utils.formatDouble(e.getFinalDamage() / 2.0) + " \u2764", 10, 20, 10);
+                } catch (RuntimeException ex) {
+                    this.getLogger().warning("致命伤害救援已排队,但无法显示标题: " + ex.getMessage());
+                }
                 e.setDamage(0.0);
             } else if (e.getFinalDamage() > 10.0) {
-                TitleUtils.sendTitle((Player)e.getEntity(), "", "\u00a7c\u4e25\u91cd\u4f24\u5bb3 - " + Utils.formatDouble(e.getFinalDamage() / 2.0) + " \u2764", 10, 20, 10);
+                TitleUtils.sendTitle(player, "", "\u00a7c\u4e25\u91cd\u4f24\u5bb3 - " + Utils.formatDouble(e.getFinalDamage() / 2.0) + " \u2764", 10, 20, 10);
             }
             e.setDamage(0.0);
         }
     }
 
     public void onDisable() {
+        if (this.melonKnockbackController != null) {
+            this.melonKnockbackController.shutdown();
+        }
+        if (this.recoveryService != null) {
+            this.recoveryService.stop();
+        }
         Bukkit.getConsoleSender().sendMessage("\u00a7bBridgingAnalyzer \u00a77>> \u00a7c\u6b63\u5728\u6e05\u9664\u6240\u6709\u5df2\u653e\u7f6e\u65b9\u5757....");
-        for (Counter c : counters.values()) {
+        for (Counter c : sessions.values()) {
             c.instantBreakBlock();
         }
-        counters.clear();
+        sessions.clear();
         for (Block b : Counter.scheduledBreakBlocks) {
             b.setType(Material.AIR);
         }
@@ -240,11 +254,17 @@ implements Listener {
         // 它依赖 org.json.simple —— 该库在 Spigot 1.8 内置、现代服务端已移除;
         // 而这只是给上游作者看的匿名用量统计,对玩法零贡献,Paper 自身也已内置 bStats。
         blockSkinProvider = new DefaultBlockSkinProvider();
+        this.recoveryService = new PlayerRecoveryService(this,
+                new VoidSafetyPolicy(VoidSafetyPolicy.DEFAULT_FAILURE_HEIGHT));
+        this.melonKnockbackController = new MelonKnockbackController(this, this.recoveryService);
         PluginManager pluginManager = Bukkit.getPluginManager();
         pluginManager.registerEvents((Listener)this, (Plugin)this);
         pluginManager.registerEvents((Listener)new CounterListener(), (Plugin)this);
         pluginManager.registerEvents((Listener)new HighlightListener(), (Plugin)this);
         pluginManager.registerEvents((Listener)new TriggerBlockListener(), (Plugin)this);
+        pluginManager.registerEvents((Listener)new VoidSafetyListener(this.recoveryService), (Plugin)this);
+        pluginManager.registerEvents((Listener)this.melonKnockbackController, (Plugin)this);
+        this.recoveryService.start();
         this.getCommand("bridge").setExecutor((CommandExecutor)new BridgeCommand());
         this.getCommand("clearblock").setExecutor((CommandExecutor)new ClearCommand());
         this.getCommand("bsaveworld").setExecutor((CommandExecutor)new SaveWorldCommand());
@@ -262,7 +282,8 @@ implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
-        if (e.getPlayer().hasPermission("bridginganalyzer.noclear")) {
+        if (e.getPlayer().hasPermission("bridginganalyzer.noclear")
+                && !this.recoveryService.isUnsafe(e.getPlayer())) {
             return;
         }
         BridgingAnalyzer.teleportCheckPoint(e.getPlayer());
@@ -333,8 +354,24 @@ implements Listener {
         return instance;
     }
 
+    /**
+     * Compatibility snapshot for extensions compiled against the original API.
+     * The authoritative registry remains UUID keyed and never retains Player wrappers.
+     */
     public static HashMap<Player, Counter> getCounters() {
-        return counters;
+        HashMap<Player, Counter> snapshot = new HashMap<>();
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            Counter counter = sessions.getIfPresent(player);
+            if (counter != null) {
+                snapshot.put(player, counter);
+            }
+        }
+        return snapshot;
+    }
+
+    /** Internal UUID-keyed session values, including retained offline checkpoints. */
+    public static Collection<Counter> getCounterSessions() {
+        return sessions.values();
     }
 
     public static HashMap<Block, MaterialData> getPlacedBlocks() {
@@ -346,8 +383,6 @@ implements Listener {
     }
 
     static {
-        counters = new HashMap();
         placedBlocks = new HashMap();
     }
 }
-

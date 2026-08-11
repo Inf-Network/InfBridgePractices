@@ -30,7 +30,7 @@ implements CommandExecutor {
         if (sender.hasPermission("bridginganalyzer.clear")) {
             if (args.length == 0) {
                 sender.sendMessage("\u00a7b\u00a7l\u642d\u8def\u7ec3\u4e60 \u00a77>> \u00a7c\u6b63\u5728\u6e05\u9664\u6240\u6709\u5df2\u653e\u7f6e\u65b9\u5757....");
-                for (Counter c : BridgingAnalyzer.getCounters().values()) {
+                for (Counter c : BridgingAnalyzer.getCounterSessions()) {
                     c.instantBreakBlock();
                 }
                 for (Block b : Counter.scheduledBreakBlocks) {
@@ -56,4 +56,3 @@ implements CommandExecutor {
         return true;
     }
 }
-

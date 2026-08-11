@@ -106,7 +106,7 @@ NoAIUtils.clsCraftEntity is null
 
 重写后服务端日志中 `sakura.kooi` 相关异常由 1435 次降为 **0**。
 
-## 修正上游的两个 bug
+## 严重稳定性修复
 
 ### `Counter#setCheckPoint` 就地改坏了刚存进去的检查点
 
@@ -136,6 +136,46 @@ Block target = loc.add(0.0, -1.0, 0.0).getBlock()...;   // Location#add 是就�
 比原来的固定砂岩多了几条出错路径,更不该挡在传送前面。已改成**传送优先**,
 背包与状态挪到后面收尾。
 
+### 重连后掉进深虚空且无法死亡
+
+旧实现用 `HashMap<Player, Counter>` 保存状态,而 `Counter` 又永久持有创建时的
+`Player`。Paper 按 UUID 判断 Player 相等,所以重连后的新实体会命中旧 Counter;
+虚空恢复虽然执行了,实际传送的却是已经离线的旧实体。传送返回 `false` 又未检查。
+
+真实虚空每次只造成 4 点伤害,达不到原来的「伤害大于 20 才恢复」条件,同时所有
+伤害又会被锁血清零,最终玩家能一直掉到数千格以下且无法死亡。
+
+现在改为:
+
+- `PlayerSessionRegistry` 仅按 UUID 保存 Counter,Counter 不再持有 Player;
+- `PlayerRecoveryService` 始终操作事件传入的当前在线 Player,并检查传送结果;
+- `VoidSafetyListener` 同时覆盖 `y < 0`、真实 `VOID` 伤害、重连与逐 tick 看门狗;
+- 同 tick 的移动、伤害和看门狗只会排一个恢复任务;
+- 标题、统计、方块清理、皮肤/背包恢复全部是传送后的独立收尾,任何一项异常都不会挡住救援;
+- 检查点与出生点传送若被第三方连续取消 3 次,会保留物品和经验并自动安全重生,
+  避免再次出现「锁血但永远出不来」;
+- OP 的 `bridginganalyzer.noclear` 只允许跳过正常加入重置,不能跳过深虚空救援。
+
+### 西瓜偶发双重击退
+
+旧逻辑把 `noDamageTicks` 当去重锁,但延迟 7 tick 后又主动清零并调用
+`damage(0)`.第一次击退产生的新移动事件如果仍踩着西瓜,就会排入第二次击退。
+
+现在由独立的 `MelonKnockbackController` 和 UUID 状态机管理:
+连续接触只触发一次,离开西瓜且冷却结束后才重新激活;传送、死亡、退出、切世界或
+切模式都会取消待执行任务。成功传送所在 tick 的旧移动事件也会被抑制,不会在传送点
+延迟补一次击退。西瓜逻辑不再修改共享无敌帧来完成去重。
+
+## 代码模块
+
+| 模块 | 职责 |
+|---|---|
+| `session` | UUID 玩家会话与 Counter 生命周期 |
+| `recovery` | 检查点传送、虚空判定、伤害/移动/重连兜底 |
+| `trigger` | 西瓜触发状态、延迟任务与清理 |
+| `commands` | 管理命令 |
+| `api` | BridgingSkin 等外部插件使用的兼容门面 |
+
 ## 本服自加的功能
 
 ### 死亡后回到检查点
@@ -143,8 +183,8 @@ Block target = loc.add(0.0, -1.0, 0.0).getBlock()...;   // Location#add 是就�
 上游没有实现 `PlayerRespawnEvent`,死亡走原版重生逻辑,回世界出生点。
 现在改为回最后踩过的绿宝石块,与掉虚空的行为一致。
 
-> 注意:`onDamage` 会把**所有玩家伤害清零**(上游设计,练习服不该被打死),
-> 所以死亡实际上只会由 `/kill` 之类的外部手段触发。
+> 注意:`onDamage` 会把**所有玩家伤害清零**(上游设计,练习服不该被打死)。
+> 唯一例外是两处安全传送连续 3 次都失败时,恢复模块会保物品强制重生,防止永久锁死。
 
 ### 终点烟花的「实弹」
 
@@ -165,10 +205,9 @@ Block target = loc.add(0.0, -1.0, 0.0).getBlock()...;   // Location#add 是就�
 
 ### 实现上绕开的三个坑
 
-**1. 无敌帧。** 踩红石块那一刻(tick 0)`TriggerBlockListener` 设了 40 tick 无敌,
-但紧接着 `teleportCheckPoint()` 把它**覆盖成 5**(不是叠加)并把血量拉满。
-烟花是在粒子环播完、也就是 **tick 20** 才发射的,那时无敌帧早已过期,
-但结算前仍显式 `setNoDamageTicks(0)` 兜底 —— 这 22 tick 里玩家可能因别的原因吃到无敌帧。
+**1. 无敌帧。** 踩红石块那一刻(tick 0)`TriggerBlockListener` 设了 40 tick 无敌。
+烟花是在粒子环播完、也就是 **tick 20** 才发射,结算前显式
+`setNoDamageTicks(0)` —— 否则这段时间里其他来源产生的无敌帧可能挡住实弹伤害。
 
 **2. 伤害归因。** 必须用 `damage(double, DamageSource)` 配
 `DamageType.FIREWORKS`,死亡信息才是原版的「被烟花火箭炸死了」。
@@ -189,6 +228,8 @@ gradle -p .. :BridgingAnalyzer:build
 ```
 
 产物 `build/libs/BridgingAnalyzer-28-1.21.11.jar`,复制到服务端 `plugins/` 即可。
+
+虚空边界与西瓜去重有 JUnit 回归测试,随 `build` 自动执行。
 
 ## 提供的命令
 

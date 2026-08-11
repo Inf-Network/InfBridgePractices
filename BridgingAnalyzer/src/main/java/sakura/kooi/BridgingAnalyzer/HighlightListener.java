@@ -14,6 +14,8 @@
 package sakura.kooi.BridgingAnalyzer;
 
 import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -22,12 +24,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import sakura.kooi.BridgingAnalyzer.BridgingAnalyzer;
 import org.bukkit.Particle;
 
 public class HighlightListener
 implements Listener {
-    private HashMap<Player, Block> highlightHistory = new HashMap();
+    private final Map<UUID, Block> highlightHistory = new HashMap<>();
 
     private Block getRelativeBrick(Block b) {
         Block relative = b.getRelative(BlockFace.EAST);
@@ -52,7 +55,7 @@ implements Listener {
     @EventHandler
     public void onFallDown(PlayerMoveEvent e) {
         Block historyBlock;
-        if (e.getTo().getY() < 0.0 && (historyBlock = this.highlightHistory.get(e.getPlayer())) != null) {
+        if (e.getTo().getY() < 0.0 && (historyBlock = this.highlightHistory.get(e.getPlayer().getUniqueId())) != null) {
             e.getPlayer().sendBlockChange(historyBlock.getLocation(), historyBlock.getType(), historyBlock.getData());
         }
     }
@@ -63,14 +66,19 @@ implements Listener {
         if (!BridgingAnalyzer.getCounter(e.getPlayer()).isHighlightEnabled()) {
             return;
         }
-        if (e.getFrom().getBlock() != e.getTo().getBlock() && (target = this.getRelativeBrick(this.roundLocation(e.getTo().clone().add(0.0, -1.0, 0.0)).getBlock())) != null) {
-            Block historyBlock = this.highlightHistory.get(e.getPlayer());
+        if (!e.getFrom().getBlock().equals(e.getTo().getBlock()) && (target = this.getRelativeBrick(this.roundLocation(e.getTo().clone().add(0.0, -1.0, 0.0)).getBlock())) != null) {
+            Block historyBlock = this.highlightHistory.get(e.getPlayer().getUniqueId());
             if (historyBlock != null) {
                 e.getPlayer().sendBlockChange(historyBlock.getLocation(), historyBlock.getType(), historyBlock.getData());
             }
             e.getPlayer().sendBlockChange(target.getLocation(), Material.SNOW_BLOCK, (byte)0);
-            this.highlightHistory.put(e.getPlayer(), target);
+            this.highlightHistory.put(e.getPlayer().getUniqueId(), target);
         }
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        this.highlightHistory.remove(event.getPlayer().getUniqueId());
     }
 
     @EventHandler
@@ -89,4 +97,3 @@ implements Listener {
         return loc;
     }
 }
-
