@@ -2,11 +2,7 @@ package net.infnetwork.snowball.cpscounter;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
-import net.infnetwork.snowball.cpscounter.ActionBarUtils;
-import net.infnetwork.snowball.cpscounter.Counter;
-import net.infnetwork.snowball.cpscounter.CpsCounter;
 
 public class MonitorThread
 implements Runnable {
@@ -39,6 +35,6 @@ implements Runnable {
     }
 
     public void startMonitor() {
-        this.task = Bukkit.getScheduler().runTaskTimer((Plugin)CpsCounter.getInstance(), (Runnable)this, 10L, 10L);
+        this.task = Bukkit.getScheduler().runTaskTimer(CpsCounter.getInstance(), this, 10L, 10L);
     }
 }

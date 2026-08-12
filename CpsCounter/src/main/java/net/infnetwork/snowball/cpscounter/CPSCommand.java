@@ -8,12 +8,10 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import net.infnetwork.snowball.cpscounter.Counter;
-import net.infnetwork.snowball.cpscounter.CpsCounter;
 
 public class CPSCommand
 implements CommandExecutor {
-    private Map<CommandSender, Long> executeTime = new HashMap<CommandSender, Long>();
+    private final Map<CommandSender, Long> executeTime = new HashMap<>();
 
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) {
@@ -26,7 +24,7 @@ implements CommandExecutor {
                 return true;
             }
             if (args[0].equalsIgnoreCase("#mon")) {
-                if (!(sender instanceof Player)) {
+                if (!(sender instanceof Player monitoringPlayer)) {
                     NetworkMessages.send(sender, "&c\u9519\u8bef: \u60a8\u5fc5\u987b\u767b\u5165\u6e38\u620f\u624d\u80fd\u4f7f\u7528CPS\u76d1\u89c6\u6a21\u5f0f.");
                     return true;
                 }
@@ -34,8 +32,8 @@ implements CommandExecutor {
                     NetworkMessages.send(sender, "&c\u4f60\u6ca1\u6709\u6743\u9650\u6267\u884c\u6b64\u547d\u4ee4");
                     return true;
                 }
-                if (CpsCounter.isMoniting((Player)sender)) {
-                    CpsCounter.stopMoniting((Player)sender);
+                if (CpsCounter.isMoniting(monitoringPlayer)) {
+                    CpsCounter.stopMoniting(monitoringPlayer);
                     NetworkMessages.send(sender, "&a\u76d1\u89c6\u5df2\u505c\u6b62");
                     return true;
                 }
@@ -48,12 +46,12 @@ implements CommandExecutor {
                 if (p == null) {
                     return true;
                 }
-                CpsCounter.startMonitor((Player)sender, p);
+                CpsCounter.startMonitor(monitoringPlayer, p);
                 NetworkMessages.send(sender, "&a\u5f00\u59cb\u76d1\u89c6\u73a9\u5bb6 " + p.getName());
                 return true;
             }
             if (args[0].equalsIgnoreCase("#silent")) {
-                if (!(sender instanceof Player)) {
+                if (!(sender instanceof Player monitoringPlayer)) {
                     NetworkMessages.send(sender, "&c\u9519\u8bef: \u60a8\u5fc5\u987b\u767b\u5165\u6e38\u620f\u624d\u80fd\u5207\u6362CPS\u81ea\u52a8\u8b66\u544a.");
                     return true;
                 }
@@ -61,7 +59,7 @@ implements CommandExecutor {
                     NetworkMessages.send(sender, "&c\u4f60\u6ca1\u6709\u6743\u9650\u6267\u884c\u6b64\u547d\u4ee4");
                     return true;
                 }
-                if (CpsCounter.switchSilent((Player)sender)) {
+                if (CpsCounter.switchSilent(monitoringPlayer)) {
                     NetworkMessages.send(sender, "&cCPS\u81ea\u52a8\u8b66\u544a\u5df2\u5bf9\u60a8\u5173\u95ed");
                     return true;
                 }
@@ -86,7 +84,7 @@ implements CommandExecutor {
     }
 
     private Player getPlayer(CommandSender sender, String player) {
-        OfflinePlayer offp = Bukkit.getOfflinePlayer((String)player);
+        OfflinePlayer offp = Bukkit.getOfflinePlayer(player);
         if (offp == null) {
             NetworkMessages.send(sender, "&c\u9519\u8bef: \u73a9\u5bb6 " + player + " \u4e0d\u5b58\u5728.");
             return null;

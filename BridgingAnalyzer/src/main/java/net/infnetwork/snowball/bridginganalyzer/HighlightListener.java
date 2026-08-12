@@ -43,7 +43,8 @@ implements Listener {
     public void onFallDown(PlayerMoveEvent e) {
         Block historyBlock;
         if (e.getTo().getY() < 0.0 && (historyBlock = this.highlightHistory.get(e.getPlayer().getUniqueId())) != null) {
-            e.getPlayer().sendBlockChange(historyBlock.getLocation(), historyBlock.getType(), historyBlock.getData());
+            e.getPlayer().sendBlockChange(
+                    historyBlock.getLocation(), historyBlock.getBlockData());
         }
     }
 
@@ -56,9 +57,11 @@ implements Listener {
         if (!e.getFrom().getBlock().equals(e.getTo().getBlock()) && (target = this.getRelativeBrick(this.roundLocation(e.getTo().clone().add(0.0, -1.0, 0.0)).getBlock())) != null) {
             Block historyBlock = this.highlightHistory.get(e.getPlayer().getUniqueId());
             if (historyBlock != null) {
-                e.getPlayer().sendBlockChange(historyBlock.getLocation(), historyBlock.getType(), historyBlock.getData());
+                e.getPlayer().sendBlockChange(
+                        historyBlock.getLocation(), historyBlock.getBlockData());
             }
-            e.getPlayer().sendBlockChange(target.getLocation(), Material.SNOW_BLOCK, (byte)0);
+            e.getPlayer().sendBlockChange(
+                    target.getLocation(), Material.SNOW_BLOCK.createBlockData());
             this.highlightHistory.put(e.getPlayer().getUniqueId(), target);
         }
     }

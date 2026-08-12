@@ -5,7 +5,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 public class PlayerDeathByPlayer
@@ -15,16 +14,15 @@ implements Listener {
         if (e.isCancelled()) {
             return;
         }
-        if (e.getDamager() instanceof Player && e.getEntity() instanceof Player) {
-            Player damager = (Player)e.getDamager();
-            final Player p = (Player)e.getEntity();
+        if (e.getDamager() instanceof Player damager && e.getEntity() instanceof Player p) {
             BlockLv.getInstance().killPlayer.put(p, damager);
             new BukkitRunnable(){
 
+                @Override
                 public void run() {
                     BlockLv.getInstance().killPlayer.remove(p);
                 }
-            }.runTaskLater((Plugin)BlockLv.getInstance(), 120L);
+            }.runTaskLater(BlockLv.getInstance(), 120L);
         }
     }
 }

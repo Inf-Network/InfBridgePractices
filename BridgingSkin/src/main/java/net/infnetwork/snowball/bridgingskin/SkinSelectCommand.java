@@ -5,6 +5,9 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
@@ -53,7 +56,12 @@ public final class SkinSelectCommand implements CommandExecutor {
             Inventory inventory = Bukkit.createInventory(
                     holder,
                     INVENTORY_SIZE,
-                    "§6§l皮肤库存 §8(" + (page + 1) + "/" + totalPages + ")");
+                    Component.empty()
+                            .append(Component.text(
+                                    "皮肤库存 ", NamedTextColor.GOLD, TextDecoration.BOLD))
+                            .append(Component.text(
+                                    "(" + (page + 1) + "/" + totalPages + ")",
+                                    NamedTextColor.DARK_GRAY)));
             holder.attach(inventory);
 
             String currentMaterial = skin.currentSkin == null ? "" : skin.currentSkin.material;
@@ -71,35 +79,51 @@ public final class SkinSelectCommand implements CommandExecutor {
     private static ItemStack skinItem(Material material, boolean selected) {
         ItemStack item = new ItemStack(material, 64);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName((selected ? "§a§l当前皮肤 §f" : "§e") + material.name());
-        meta.setLore(List.of(selected ? "§a正在使用" : "§7点击选择此皮肤"));
+        Component name = selected
+                ? itemComponent(Component.empty()
+                        .append(Component.text(
+                                "当前皮肤 ", NamedTextColor.GREEN, TextDecoration.BOLD))
+                        .append(Component.text(material.name(), NamedTextColor.WHITE)))
+                : itemComponent(Component.text(material.name(), NamedTextColor.YELLOW));
+        meta.displayName(name);
+        meta.lore(List.of(itemComponent(Component.text(
+                selected ? "正在使用" : "点击选择此皮肤",
+                selected ? NamedTextColor.GREEN : NamedTextColor.GRAY))));
         meta.setEnchantmentGlintOverride(selected);
         item.setItemMeta(meta);
         return item;
     }
 
     static void decorateNavigation(Inventory inventory, int page, int totalPages) {
-        ItemStack filler = namedItem(Material.GRAY_STAINED_GLASS_PANE, "§8");
+        ItemStack filler = namedItem(Material.GRAY_STAINED_GLASS_PANE, Component.empty());
         for (int slot = SkinSelectHolder.CONTENT_SIZE; slot < INVENTORY_SIZE; slot++) {
             inventory.setItem(slot, filler);
         }
         if (page > 0) {
             inventory.setItem(SkinSelectHolder.PREVIOUS_SLOT,
-                    namedItem(Material.ARROW, "§e上一页"));
+                    namedItem(Material.ARROW,
+                            Component.text("上一页", NamedTextColor.YELLOW)));
         }
         inventory.setItem(SkinSelectHolder.PAGE_SLOT,
-                namedItem(Material.PAPER, "§b第 " + (page + 1) + " / " + totalPages + " 页"));
+                namedItem(Material.PAPER, Component.text(
+                        "第 " + (page + 1) + " / " + totalPages + " 页",
+                        NamedTextColor.AQUA)));
         if (page + 1 < totalPages) {
             inventory.setItem(SkinSelectHolder.NEXT_SLOT,
-                    namedItem(Material.ARROW, "§e下一页"));
+                    namedItem(Material.ARROW,
+                            Component.text("下一页", NamedTextColor.YELLOW)));
         }
     }
 
-    static ItemStack namedItem(Material material, String name) {
+    static ItemStack namedItem(Material material, Component name) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(name);
+        meta.displayName(itemComponent(name));
         item.setItemMeta(meta);
         return item;
+    }
+
+    static Component itemComponent(Component component) {
+        return component;
     }
 }

@@ -18,6 +18,7 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Waterlogged;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.Event;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -72,7 +73,8 @@ implements Listener {
             return;
         }
         if (e.getAction().toString().contains("CLICK")) {
-            if (e.getAction() == Action.LEFT_CLICK_BLOCK && e.isCancelled()) {
+            if (e.getAction() == Action.LEFT_CLICK_BLOCK
+                    && e.useInteractedBlock() == Event.Result.DENY) {
                 return;
             }
             Counter c = BridgingAnalyzer.getCounter(e.getPlayer());

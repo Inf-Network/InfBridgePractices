@@ -2,7 +2,6 @@ package net.infnetwork.snowball.bridginganalyzer.utils;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 import net.infnetwork.snowball.bridginganalyzer.BridgingAnalyzer;
 import org.bukkit.Particle;
@@ -20,12 +19,35 @@ implements Runnable {
     private int cr = 0;
     private int de;
 
-    public TeleportRingEffect(Location centerLoc, Location target, long delay, int dela, int round) {
+    private TeleportRingEffect(Location centerLoc, Location target, int dela, int round) {
         this.round = round;
         this.target = target;
         this.loc = centerLoc;
         this.dela = dela;
-        this.task = Bukkit.getScheduler().runTaskTimer((Plugin)BridgingAnalyzer.getInstance(), (Runnable)this, delay, delay);
+    }
+
+    /**
+     * Compatibility constructor retained for extensions that override {@link #onFinish()}.
+     * Bukkit only queues the runnable for a later server tick and never runs it inline.
+     */
+    @SuppressWarnings("this-escape")
+    public TeleportRingEffect(Location centerLoc, Location target, long delay, int dela,
+                              int round) {
+        this(centerLoc, target, dela, round);
+        this.start(delay);
+    }
+
+    /** Creates and starts an effect only after its state is fully initialized. */
+    public static void play(Location centerLoc, Location target, long delay, int dela,
+                            int round, Runnable onFinish) {
+        TeleportRingEffect effect = new CallbackEffect(
+                centerLoc, target, dela, round, onFinish);
+        effect.start(delay);
+    }
+
+    private void start(long delay) {
+        this.task = Bukkit.getScheduler().runTaskTimer(
+                BridgingAnalyzer.getInstance(), this, delay, delay);
     }
 
     public abstract void onFinish();
@@ -53,5 +75,19 @@ implements Runnable {
             particlet.getWorld().spawnParticle(this.type, particlet, 1, 0.0, 0.0, 0.0, 0.0);
         }
     }
-}
 
+    private static final class CallbackEffect extends TeleportRingEffect {
+        private final Runnable callback;
+
+        private CallbackEffect(Location centerLoc, Location target, int dela, int round,
+                               Runnable callback) {
+            super(centerLoc, target, dela, round);
+            this.callback = callback;
+        }
+
+        @Override
+        public void onFinish() {
+            this.callback.run();
+        }
+    }
+}

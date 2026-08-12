@@ -15,10 +15,8 @@ import net.infnetwork.snowball.blocklv.events.PlayerDeathByPlayer;
 import net.infnetwork.snowball.blocklv.events.PlayerLogin;
 import net.infnetwork.snowball.blocklv.events.PlayerMove;
 import net.infnetwork.snowball.blocklv.papi.PAPIHooker;
-import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class BlockLv extends JavaPlugin {
@@ -33,11 +31,10 @@ public class BlockLv extends JavaPlugin {
      */
     public Map<Player, Player> killPlayer = new HashMap<>();
 
-    Plugin papi;
-
     private boolean onEnableHolo;
 
     private Database database;
+    private PAPIHooker placeholderExpansion;
 
     @Override
     public void onEnable() {
@@ -56,10 +53,11 @@ public class BlockLv extends JavaPlugin {
             this.onEnableHolo = true;
         }
 
-        this.papi = Bukkit.getPluginManager().getPlugin("PlaceholderAPI");
-        if (this.papi != null) {
+        if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
             this.getLogger().info("开始链接papi");
-            if (new PAPIHooker().register()) {
+            PAPIHooker expansion = new PAPIHooker();
+            if (expansion.register()) {
+                this.placeholderExpansion = expansion;
                 this.getLogger().info("成功注册papi变量");
             } else {
                 this.getLogger().warning("papi链接失败");
@@ -142,7 +140,9 @@ public class BlockLv extends JavaPlugin {
     public void onDisable() {
         this.getLogger().info("disable");
         DisPlay.remove();
-        PlaceholderAPI.unregisterPlaceholderHook("blocklv");
+        if (this.placeholderExpansion != null && this.placeholderExpansion.isRegistered()) {
+            this.placeholderExpansion.unregister();
+        }
 
         // disablePlugin may re-enter here before database initialization succeeds.
         if (this.database == null) {

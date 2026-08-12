@@ -1,18 +1,37 @@
 package net.infnetwork.snowball.bridginganalyzer;
 
+import java.net.URI;
+import java.util.UUID;
+import net.kyori.adventure.resource.ResourcePackInfo;
+import net.kyori.adventure.resource.ResourcePackRequest;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerResourcePackStatusEvent;
-import org.bukkit.plugin.Plugin;
-import net.infnetwork.snowball.bridginganalyzer.BridgingAnalyzer;
 
 public class ResourcePackLoader
 implements Listener {
+    private static final String PACK_URL =
+            "https://raw.githubusercontent.com/SakuraKoi/FileCloud/"
+                    + "a83b498c1effc63e1e049b2b6e74c57cd7d89d60/BridgingHelper.zip";
+    private static final ResourcePackInfo PACK_INFO = ResourcePackInfo.resourcePackInfo(
+            UUID.fromString("0435f121-7bd8-4fc3-9881-f3963936612a"),
+            URI.create(PACK_URL),
+            "04de1c817d5047775dc8f4ec19e179b43fbe55f5");
+    private static final ResourcePackRequest PACK_REQUEST = ResourcePackRequest
+            .resourcePackRequest()
+            .packs(PACK_INFO)
+            .replace(true)
+            .required(false)
+            .build();
+
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
-        Bukkit.getScheduler().runTaskLater((Plugin)BridgingAnalyzer.getInstance(), () -> e.getPlayer().setResourcePack("https://raw.githubusercontent.com/SakuraKoi/FileCloud/texture/BridgingHelper.zip"), 10L);
+        Bukkit.getScheduler().runTaskLater(
+                BridgingAnalyzer.getInstance(),
+                () -> e.getPlayer().sendResourcePacks(PACK_REQUEST),
+                10L);
     }
 
     @EventHandler
@@ -26,4 +45,3 @@ implements Listener {
         }
     }
 }
-

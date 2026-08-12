@@ -10,7 +10,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
 
 public class PlayerLogin
 implements Listener {
@@ -18,7 +17,7 @@ implements Listener {
     public void onJoin(PlayerJoinEvent e) {
         UUID playerUuid = e.getPlayer().getUniqueId();
         String playerName = e.getPlayer().getName();
-        Bukkit.getScheduler().runTask((Plugin)BlockLv.getInstance(), () -> {
+        Bukkit.getScheduler().runTask(BlockLv.getInstance(), () -> {
             Player currentPlayer = Bukkit.getPlayer(playerUuid);
             if (currentPlayer == null || !currentPlayer.isOnline()) {
                 return;

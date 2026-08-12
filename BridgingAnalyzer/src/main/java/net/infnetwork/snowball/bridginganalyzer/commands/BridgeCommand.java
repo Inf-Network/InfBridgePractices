@@ -11,6 +11,7 @@ import net.infnetwork.snowball.bridginganalyzer.BridgingAnalyzer;
 import net.infnetwork.snowball.bridginganalyzer.Counter;
 import net.infnetwork.snowball.bridginganalyzer.utils.NetworkMessages;
 import net.infnetwork.snowball.bridginganalyzer.utils.TitleUtils;
+import net.infnetwork.snowball.bridginganalyzer.utils.ComponentText;
 
 public class BridgeCommand
 implements CommandExecutor {
@@ -55,7 +56,7 @@ implements CommandExecutor {
                 break;
             }
             case "reset": {
-                counter.setCheckPoint(Bukkit.getWorld((String)"world").getSpawnLocation().add(0.5, 1.0, 0.5), (Player)sender);
+                counter.setCheckPoint(Bukkit.getWorld("world").getSpawnLocation().add(0.5, 1.0, 0.5), (Player)sender);
                 NetworkMessages.send(sender, "&a\u51fa\u751f\u70b9\u5df2\u91cd\u7f6e.");
                 break;
             }
@@ -67,7 +68,12 @@ implements CommandExecutor {
                 ArmorStand nearest = null;
                 Player player = (Player)sender;
                 for (Entity entity : player.getWorld().getEntities()) {
-                    if (!(entity instanceof ArmorStand) || entity.getCustomName() == null || !entity.getCustomName().contains("VillagerSpawnPoint") || nearest != null && !(entity.getLocation().distance(player.getLocation()) < nearest.getLocation().distance(player.getLocation()))) continue;
+                    if (!(entity instanceof ArmorStand)
+                            || !ComponentText.customNameContains(entity, "VillagerSpawnPoint")
+                            || nearest != null && !(entity.getLocation().distance(player.getLocation())
+                                    < nearest.getLocation().distance(player.getLocation()))) {
+                        continue;
+                    }
                     nearest = (ArmorStand)entity;
                 }
                 if (nearest != null) {

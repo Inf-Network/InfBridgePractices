@@ -3,14 +3,10 @@ package net.infnetwork.snowball.bridginganalyzer.utils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Particle;
-import org.bukkit.plugin.Plugin;
 import net.infnetwork.snowball.bridginganalyzer.BridgingAnalyzer;
 
 /**
- * 在指定位置画一圈粒子,延迟若干 tick 后回调 {@link #onFinish()}。
- *
- * 用于踩下功能方块后的视觉反馈:先出现光环,等光环播完再执行实际动作
- * (设置出生点 / 传送 / 完成练习)。
+ * Legacy subclassable particle ring plus a two-phase callback API for internal use.
  */
 public abstract class ParticleRing {
 
@@ -19,11 +15,24 @@ public abstract class ParticleRing {
     private static final double RADIUS = 1.0;
 
     /**
-     * @param centerLoc 圆心
-     * @param type      粒子类型
-     * @param delay     延迟多少 tick 后回调 onFinish
+     * Compatibility constructor retained for extensions that override {@link #onFinish()}.
+     * Bukkit only queues this callback for a later server tick; it is never invoked inline.
      */
+    @SuppressWarnings("this-escape")
     public ParticleRing(Location centerLoc, Particle type, long delay) {
+        draw(centerLoc, type);
+        Bukkit.getScheduler().runTaskLater(
+                BridgingAnalyzer.getInstance(), this::onFinish, delay);
+    }
+
+    /** Starts the internal callback form without publishing a partially built subclass. */
+    public static void play(Location centerLoc, Particle type, long delay, Runnable onFinish) {
+        draw(centerLoc, type);
+        Bukkit.getScheduler().runTaskLater(
+                BridgingAnalyzer.getInstance(), onFinish, delay);
+    }
+
+    private static void draw(Location centerLoc, Particle type) {
         for (int i = 0; i < CIRCLE_ELEMENTS; ++i) {
             double alpha = 360.0 / (double) CIRCLE_ELEMENTS * (double) i;
             double x = RADIUS * Math.sin(Math.toRadians(alpha));
@@ -32,8 +41,6 @@ public abstract class ParticleRing {
                     centerLoc.getX() + x, centerLoc.getY(), centerLoc.getZ() + z);
             centerLoc.getWorld().spawnParticle(type, particle, 1, 0.0, 0.0, 0.0, 0.0);
         }
-        Bukkit.getScheduler().runTaskLater(
-                (Plugin) BridgingAnalyzer.getInstance(), this::onFinish, delay);
     }
 
     public abstract void onFinish();

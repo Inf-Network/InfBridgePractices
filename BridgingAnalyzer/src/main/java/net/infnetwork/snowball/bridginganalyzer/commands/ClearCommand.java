@@ -22,7 +22,7 @@ implements CommandExecutor {
                 }
             } else {
                 String player = args[0];
-                OfflinePlayer offp = Bukkit.getOfflinePlayer((String)player);
+                OfflinePlayer offp = Bukkit.getOfflinePlayer(player);
                 if (offp == null) {
                     NetworkMessages.send(sender, "&c\u9519\u8bef: \u73a9\u5bb6 " + player + " \u4e0d\u5b58\u5728.");
                     return true;

@@ -1,7 +1,6 @@
 package net.infnetwork.snowball.bridgingskin.data;
 
 import java.util.LinkedHashSet;
-import net.infnetwork.snowball.bridgingskin.data.SkinSet;
 import com.google.gson.annotations.SerializedName;
 
 public class PlayerSkin {
@@ -24,7 +23,7 @@ public class PlayerSkin {
         this.uuid = uuid;
         this.player = player;
         this.currentSkin = new SkinSet();
-        this.allSkin = new LinkedHashSet();
+        this.allSkin = new LinkedHashSet<>();
         this.allSkin.add(this.currentSkin);
     }
 
@@ -32,7 +31,7 @@ public class PlayerSkin {
         this.uuid = "#NULL";
         this.player = "#NULL";
         this.currentSkin = new SkinSet();
-        this.allSkin = new LinkedHashSet();
+        this.allSkin = new LinkedHashSet<>();
         this.allSkin.add(this.currentSkin);
     }
 }

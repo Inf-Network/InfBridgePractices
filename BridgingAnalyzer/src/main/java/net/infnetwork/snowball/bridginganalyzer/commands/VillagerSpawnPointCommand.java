@@ -9,6 +9,7 @@ import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import net.kyori.adventure.text.Component;
 import net.infnetwork.snowball.bridginganalyzer.utils.NetworkMessages;
 
 public class VillagerSpawnPointCommand
@@ -28,9 +29,9 @@ implements CommandExecutor {
         stand.setSmall(true);
         stand.setGravity(false);
         stand.setVisible(false);
-        stand.setHelmet(new ItemStack(Material.REDSTONE_BLOCK, 1));
+        stand.getEquipment().setHelmet(new ItemStack(Material.REDSTONE_BLOCK, 1));
         stand.setMarker(true);
-        stand.setCustomName("VillagerSpawnPoint");
+        stand.customName(Component.text("VillagerSpawnPoint"));
         NetworkMessages.send(player, "&a\u6751\u6c11\u5237\u65b0\u70b9\u5df2\u8bbe\u7f6e.");
         return true;
     }

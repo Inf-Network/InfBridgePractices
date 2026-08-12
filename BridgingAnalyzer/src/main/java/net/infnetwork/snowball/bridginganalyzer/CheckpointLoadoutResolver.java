@@ -39,7 +39,7 @@ final class CheckpointLoadoutResolver {
                 if (selectedSkin != SKIN_PLACEHOLDER) {
                     // Preserve the preset stack's amount and generic item metadata;
                     // only its material acts as the skin placeholder.
-                    resolved.setType(selectedSkin);
+                    resolved = resolved.withType(selectedSkin);
                 }
             }
             items.add(resolved);

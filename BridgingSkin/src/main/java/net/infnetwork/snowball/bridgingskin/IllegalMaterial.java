@@ -1,43 +1,39 @@
 package net.infnetwork.snowball.bridgingskin;
 
-import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.Set;
 import org.bukkit.Material;
 
 public class IllegalMaterial {
-    private static final ArrayList<Material> illegalMaterial = new ArrayList();
+    private static final Set<Material> ILLEGAL_MATERIALS = EnumSet.of(
+            Material.REDSTONE_BLOCK,
+            Material.PISTON,
+            Material.STICKY_PISTON,
+            Material.LEVER,
+            Material.DISPENSER,
+            Material.LAPIS_BLOCK,
+            Material.EMERALD_BLOCK,
+            Material.BEACON,
+            Material.COMPARATOR,
+            Material.REPEATER,
+            Material.REDSTONE,
+            Material.REDSTONE_TORCH,
+            Material.STONE_BUTTON,
+            Material.OAK_BUTTON,
+            Material.HOPPER,
+            Material.LIGHT_WEIGHTED_PRESSURE_PLATE,
+            Material.HEAVY_WEIGHTED_PRESSURE_PLATE,
+            Material.STONE_PRESSURE_PLATE,
+            Material.OAK_PRESSURE_PLATE,
+            Material.DAYLIGHT_DETECTOR,
+            Material.DROPPER,
+            Material.SLIME_BLOCK,
+            Material.ANVIL,
+            Material.GRAVEL,
+            Material.MELON,
+            Material.SEA_LANTERN);
 
     public static boolean isIllegal(Material skin) {
-        return illegalMaterial.contains(skin);
-    }
-
-    static {
-        illegalMaterial.add(Material.REDSTONE_BLOCK);
-        illegalMaterial.add(Material.PISTON);
-        illegalMaterial.add(Material.STICKY_PISTON);
-        illegalMaterial.add(Material.LEVER);
-        illegalMaterial.add(Material.DISPENSER);
-        illegalMaterial.add(Material.LAPIS_BLOCK);
-        illegalMaterial.add(Material.EMERALD_BLOCK);
-        illegalMaterial.add(Material.BEACON);
-        illegalMaterial.add(Material.COMPARATOR);
-        illegalMaterial.add(Material.REPEATER);
-        illegalMaterial.add(Material.REDSTONE);
-        illegalMaterial.add(Material.REDSTONE_TORCH);
-        illegalMaterial.add(Material.STONE_BUTTON);
-        illegalMaterial.add(Material.OAK_BUTTON);
-        illegalMaterial.add(Material.HOPPER);
-        illegalMaterial.add(Material.LIGHT_WEIGHTED_PRESSURE_PLATE);
-        illegalMaterial.add(Material.HEAVY_WEIGHTED_PRESSURE_PLATE);
-        illegalMaterial.add(Material.STONE_PRESSURE_PLATE);
-        illegalMaterial.add(Material.OAK_PRESSURE_PLATE);
-        illegalMaterial.add(Material.DAYLIGHT_DETECTOR);
-        illegalMaterial.add(Material.DROPPER);
-        illegalMaterial.add(Material.SLIME_BLOCK);
-        illegalMaterial.add(Material.ANVIL);
-        illegalMaterial.add(Material.GRAVEL);
-        // Analyzer uses melon as the knockback trigger and sea lantern as the
-        // temporary victory/break marker. They can never be player skins.
-        illegalMaterial.add(Material.MELON);
-        illegalMaterial.add(Material.SEA_LANTERN);
+        return ILLEGAL_MATERIALS.contains(skin);
     }
 }

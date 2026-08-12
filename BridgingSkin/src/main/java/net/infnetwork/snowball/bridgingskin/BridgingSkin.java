@@ -2,6 +2,7 @@ package net.infnetwork.snowball.bridgingskin;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import io.papermc.paper.event.connection.PlayerConnectionValidateLoginEvent;
 import java.io.File;
 import java.io.FileReader;
 import java.io.Reader;
@@ -10,6 +11,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.logging.Level;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.command.CommandExecutor;
@@ -21,13 +25,11 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.Plugin;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
-import net.infnetwork.snowball.bridginganalyzer.api.BlockSkinProvider;
 import net.infnetwork.snowball.bridginganalyzer.api.BridgingAnalyzerAPI;
 import net.infnetwork.snowball.bridgingskin.data.PlayerSkin;
 import net.infnetwork.snowball.bridgingskin.lottery.LotterySubsystem;
@@ -46,6 +48,12 @@ import net.infnetwork.snowball.bridgingskin.storage.SkinDatabaseFactory;
  */
 public final class BridgingSkin extends JavaPlugin implements Listener {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final LegacyComponentSerializer LEGACY_SECTION =
+            LegacyComponentSerializer.legacySection();
+    private static final String LEGACY_SKIN_TOKEN_LORE = "§6皮肤方块";
+    private static final Component UNVERIFIED_IDENTITY_MESSAGE = Component.text(
+            "无法验证登录身份，为保护皮肤数据已拒绝登录，请稍后重试。",
+            NamedTextColor.RED);
 
     private static BridgingSkin instance;
     private static SkinService skinService;
@@ -132,7 +140,7 @@ public final class BridgingSkin extends JavaPlugin implements Listener {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 skinService.getOrCreate(player);
             }
-            BridgingAnalyzerAPI.setBlockSkinProvider((BlockSkinProvider) new SkinProvider());
+            BridgingAnalyzerAPI.setBlockSkinProvider(new SkinProvider());
             providerInstalled = true;
         } catch (RuntimeException exception) {
             getLogger().log(Level.SEVERE,
@@ -177,14 +185,22 @@ public final class BridgingSkin extends JavaPlugin implements Listener {
 
     /** Fail the login instead of returning and later persisting a fake default record. */
     @EventHandler(priority = EventPriority.LOWEST)
-    public void onLogin(PlayerLoginEvent event) {
+    public void onValidateLogin(PlayerConnectionValidateLoginEvent event) {
+        LoginIdentityResolver.Resolution identity =
+                LoginIdentityResolver.resolve(event.getConnection());
+        if (!identity.resolved()) {
+            getLogger().warning("拒绝未验证的皮肤身份: " + identity.failureReason());
+            event.kickMessage(UNVERIFIED_IDENTITY_MESSAGE);
+            return;
+        }
         try {
-            requireSkinService().getOrCreate(event.getPlayer());
+            requireSkinService().getOrCreate(identity.uuid(), identity.name());
         } catch (RuntimeException exception) {
             getLogger().log(Level.SEVERE,
-                    "无法安全加载 " + event.getPlayer().getName() + " 的皮肤", exception);
-            event.disallow(PlayerLoginEvent.Result.KICK_OTHER,
-                    "§c皮肤数据库暂时不可用，为保护数据已拒绝登录，请稍后重试。");
+                    "无法安全加载 " + identity.name() + " 的皮肤", exception);
+            event.kickMessage(Component.text(
+                    "皮肤数据库暂时不可用，为保护数据已拒绝登录，请稍后重试。",
+                    NamedTextColor.RED));
         }
     }
 
@@ -287,9 +303,13 @@ public final class BridgingSkin extends JavaPlugin implements Listener {
     }
 
     private static boolean isLegacySkinToken(ItemStack item) {
-        return item != null && item.getType() != Material.AIR
-                && item.hasItemMeta() && item.getItemMeta().hasLore()
-                && item.getItemMeta().getLore().contains("§6皮肤方块");
+        if (item == null || item.getType() == Material.AIR || !item.hasItemMeta()) {
+            return false;
+        }
+        ItemMeta meta = item.getItemMeta();
+        List<Component> lore = meta.lore();
+        return lore != null && lore.stream().anyMatch(line ->
+                LEGACY_SKIN_TOKEN_LORE.equals(LEGACY_SECTION.serialize(line)));
     }
 
     private void saveData() {

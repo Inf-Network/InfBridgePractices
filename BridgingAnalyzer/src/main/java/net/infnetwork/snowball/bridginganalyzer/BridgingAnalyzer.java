@@ -60,13 +60,13 @@ import net.infnetwork.snowball.bridginganalyzer.trigger.MelonKnockbackController
 import net.infnetwork.snowball.bridginganalyzer.utils.TitleUtils;
 import net.infnetwork.snowball.bridginganalyzer.utils.Utils;
 import net.infnetwork.snowball.bridginganalyzer.utils.NetworkMessages;
+import net.infnetwork.snowball.bridginganalyzer.utils.ComponentText;
 
 public class BridgingAnalyzer
 extends JavaPlugin
 implements Listener {
     private static BridgingAnalyzer instance;
     private static final PlayerSessionRegistry sessions = new PlayerSessionRegistry();
-    private static HashMap<Block, MaterialData> placedBlocks;
     private static BlockSkinProvider blockSkinProvider;
     private static PracticeBlockRegistry practiceBlockRegistry;
     private static boolean shuttingDown;
@@ -88,7 +88,10 @@ implements Listener {
         PlayerInventory inv = p.getInventory();
         for (int i = 0; i < inv.getSize(); ++i) {
             ItemStack item = inv.getItem(i);
-            if (item != null && item.getItemMeta() != null && item.getItemMeta().getDisplayName() != null && item.getItemMeta().getDisplayName().contains("Key")) continue;
+            if (item != null && item.hasItemMeta()
+                    && ComponentText.plain(item.getItemMeta().displayName()).contains("Key")) {
+                continue;
+            }
             inv.setItem(i, null);
         }
         ensureMenuEntry(p);
@@ -139,7 +142,7 @@ implements Listener {
         if (practiceBlockRegistry != null) {
             practiceBlockRegistry.track(ownerId, block);
         } else {
-            placedBlocks.put(block, block.getState().getData());
+            rememberPlacedBlockSnapshot(block);
         }
     }
 
@@ -147,7 +150,7 @@ implements Listener {
         if (practiceBlockRegistry != null) {
             practiceBlockRegistry.forget(block);
         } else {
-            placedBlocks.remove(block);
+            discardPlacedBlockSnapshot(block);
         }
         for (Counter counter : sessions.values()) {
             counter.removeBlockRecordLocally(block);
@@ -201,15 +204,15 @@ implements Listener {
         if (practiceBlockRegistry != null && practiceBlockRegistry.isTracked(b)) {
             return true;
         }
-        if (BridgingAnalyzer.getPlacedBlocks().containsKey(b)) {
-            return BridgingAnalyzer.getPlacedBlocks().get(b).equals((Object)b.getState().getData());
-        }
-        return false;
+        return LegacyPlacedBlockShim.matches(b);
     }
 
     @EventHandler
     public void interactAtEntity(PlayerInteractAtEntityEvent e) {
-        if (e.getPlayer().getGameMode() == GameMode.CREATIVE && e.getPlayer().hasPermission("bridge.remove") && e.getRightClicked().getCustomName().contains("VillagerSpawnPoint") && e.getRightClicked().getType() == EntityType.ARMOR_STAND) {
+        if (e.getPlayer().getGameMode() == GameMode.CREATIVE
+                && e.getPlayer().hasPermission("bridge.remove")
+                && e.getRightClicked().getType() == EntityType.ARMOR_STAND
+                && ComponentText.customNameContains(e.getRightClicked(), "VillagerSpawnPoint")) {
             e.setCancelled(true);
             e.getRightClicked().remove();
             TitleUtils.sendTitle(e.getPlayer(), "", "\u00a7a\u6751\u6c11\u5237\u65b0\u70b9\u5df2\u79fb\u9664", 10, 20, 10);
@@ -326,7 +329,7 @@ implements Listener {
         } finally {
             sessions.clear();
             Counter.scheduledBreakBlocks.clear();
-            placedBlocks.clear();
+            clearPlacedBlockSnapshots();
             if (practiceBlockRegistry != null) {
                 try {
                     practiceBlockRegistry.clearTracking();
@@ -502,15 +505,46 @@ implements Listener {
         return sessions.values();
     }
 
+    /**
+     * Legacy mutable map retained with its original generic value type and runtime values.
+     * Modern internal ownership and state tracking is handled by {@link PracticeBlockRegistry}.
+     */
+    @Deprecated
+    @SuppressWarnings("removal")
     public static HashMap<Block, MaterialData> getPlacedBlocks() {
-        return placedBlocks;
+        return LegacyPlacedBlockShim.BLOCKS;
+    }
+
+    public static void rememberPlacedBlockSnapshot(Block block) {
+        LegacyPlacedBlockShim.remember(block);
+    }
+
+    public static void discardPlacedBlockSnapshot(Block block) {
+        LegacyPlacedBlockShim.BLOCKS.remove(block);
+    }
+
+    private static void clearPlacedBlockSnapshots() {
+        LegacyPlacedBlockShim.BLOCKS.clear();
     }
 
     public static void setBlockSkinProvider(BlockSkinProvider blockSkinProvider) {
         BridgingAnalyzer.blockSkinProvider = blockSkinProvider;
     }
 
-    static {
-        placedBlocks = new HashMap();
+    @SuppressWarnings("removal")
+    private static final class LegacyPlacedBlockShim {
+        private static final HashMap<Block, MaterialData> BLOCKS = new HashMap<>();
+
+        private static void remember(Block block) {
+            BLOCKS.put(block, block.getState().getData());
+        }
+
+        private static boolean matches(Block block) {
+            return PlacedBlockSnapshotPolicy.matches(
+                    BLOCKS,
+                    block,
+                    block.getState().getData());
+        }
     }
+
 }

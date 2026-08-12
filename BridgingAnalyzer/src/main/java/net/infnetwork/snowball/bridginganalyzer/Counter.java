@@ -12,26 +12,24 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.block.Chest;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
-import net.infnetwork.snowball.bridginganalyzer.BridgingAnalyzer;
 import net.infnetwork.snowball.bridginganalyzer.block.PlacementLedger;
 import net.infnetwork.snowball.bridginganalyzer.block.PracticeBlockRegistry;
 import net.infnetwork.snowball.bridginganalyzer.utils.Utils;
 
 public class Counter {
-    public static HashSet<Block> scheduledBreakBlocks = new HashSet();
+    public static HashSet<Block> scheduledBreakBlocks = new HashSet<>();
     private static final int MAX_BREAK_RETRIES = 8;
     private static final long MAX_BREAK_RETRY_DELAY_TICKS = 100L;
-    private ArrayList<Long> counterCPS = new ArrayList();
+    private ArrayList<Long> counterCPS = new ArrayList<>();
     private int maxCPS = 0;
-    private ArrayList<Long> counterBridge = new ArrayList();
+    private ArrayList<Long> counterBridge = new ArrayList<>();
     private double maxBridge = 0.0;
     private int currentLength = 0;
     private int maxLength = 0;
-    private ArrayList<Block> allBlock = new ArrayList();
+    private ArrayList<Block> allBlock = new ArrayList<>();
     private Block lastBlock;
-    private Location checkPoint = Bukkit.getWorld((String)"world").getSpawnLocation().add(0.5, 1.0, 0.5);
+    private Location checkPoint = Bukkit.getWorld("world").getSpawnLocation().add(0.5, 1.0, 0.5);
     private boolean speedCountEnabled = true;
     private boolean PvPEnabled = false;
     private boolean highlightEnabled = true;
@@ -63,7 +61,7 @@ public class Counter {
     }
 
     public void breakBlock() {
-        new BreakRunnable(new ArrayList<Block>(this.allBlock));
+        new BreakRunnable(new ArrayList<>(this.allBlock), true).startInternal();
         this.allBlock.clear();
     }
 
@@ -140,7 +138,7 @@ public class Counter {
                     && !BridgingAnalyzer.isShuttingDown()) {
                 // Keep retrying on the main thread. The generation tokens ensure this
                 // task can never delete a newer creative/player replacement.
-                new BreakRunnable(new ArrayList<Block>(this.allBlock));
+                new BreakRunnable(new ArrayList<>(this.allBlock), true).startInternal();
             }
             this.allBlock.clear();
             return;
@@ -150,7 +148,7 @@ public class Counter {
             try {
                 Utils.breakBlock(b);
                 this.allBlock.remove(b);
-                BridgingAnalyzer.getPlacedBlocks().remove(b);
+                BridgingAnalyzer.discardPlacedBlockSnapshot(b);
             } catch (RuntimeException exception) {
                 BridgingAnalyzer.getInstance().getLogger().warning(
                         "清理旧版练习方块失败，将保留记录: " + exception.getMessage());
@@ -341,7 +339,7 @@ public class Counter {
         if (this.ownerId != null && BridgingAnalyzer.practiceBlocks() != null) {
             BridgingAnalyzer.trackPracticeBlock(this.ownerId, block);
         } else {
-            BridgingAnalyzer.getPlacedBlocks().put(block, block.getState().getData());
+            BridgingAnalyzer.rememberPlacedBlockSnapshot(block);
         }
         this.allBlock.add(block);
     }
@@ -381,14 +379,24 @@ public class Counter {
     public class BreakRunnable
     implements Runnable {
         BukkitTask task;
-        ArrayList<Block> blocks = new ArrayList();
+        ArrayList<Block> blocks = new ArrayList<>();
         ArrayList<PlacementLedger.Entry<PracticeBlockRegistry.BlockKey, UUID, Material>> placements =
                 new ArrayList<>();
         private final long normalDelayTicks;
         private int retryCount;
         private boolean stopped;
 
+        /**
+         * Compatibility constructor with the original automatic-start behavior.
+         * Bukkit only queues the cleanup for a later tick and never runs it inline.
+         */
+        @SuppressWarnings("this-escape")
         public BreakRunnable(ArrayList<Block> allBlocks) {
+            this(allBlocks, true);
+            this.startInternal();
+        }
+
+        private BreakRunnable(ArrayList<Block> allBlocks, boolean deferredStart) {
             PracticeBlockRegistry registry = BridgingAnalyzer.practiceBlocks();
             if (ownerId != null && registry != null) {
                 this.placements.addAll(registry.snapshot(ownerId));
@@ -413,6 +421,12 @@ public class Counter {
                 tick = 3;
             }
             this.normalDelayTicks = tick;
+        }
+
+        private void startInternal() {
+            if (this.placements.isEmpty() && this.blocks.isEmpty()) {
+                return;
+            }
             this.scheduleNext(10L);
         }
 
@@ -472,7 +486,7 @@ public class Counter {
                 if (blockType == Material.AIR) {
                     this.blocks.remove(0);
                     scheduledBreakBlocks.remove(block);
-                    BridgingAnalyzer.getPlacedBlocks().remove(block);
+                    BridgingAnalyzer.discardPlacedBlockSnapshot(block);
                     continue;
                 }
                 try {
@@ -489,7 +503,7 @@ public class Counter {
                 }
                 this.blocks.remove(0);
                 scheduledBreakBlocks.remove(block);
-                BridgingAnalyzer.getPlacedBlocks().remove(block);
+                BridgingAnalyzer.discardPlacedBlockSnapshot(block);
                 this.retryCount = 0;
                 this.scheduleNext(this.normalDelayTicks);
                 return;
@@ -522,7 +536,7 @@ public class Counter {
             }
             try {
                 this.task = Bukkit.getScheduler().runTaskLater(
-                        (Plugin)plugin, (Runnable)this, Math.max(1L, delayTicks));
+                        plugin, this, Math.max(1L, delayTicks));
             } catch (RuntimeException exception) {
                 plugin.getLogger().warning("无法排队练习方块清理任务: " + exception.getMessage());
                 this.stop();

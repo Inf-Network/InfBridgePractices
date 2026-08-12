@@ -8,6 +8,8 @@ import java.util.UUID;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.scheduler.BukkitTask;
@@ -299,7 +301,7 @@ public final class PlayerRecoveryService {
         runSafely(player, "停止下落", () -> stabilize(player));
         runSafely(player, "恢复生存模式", () -> player.setGameMode(GameMode.SURVIVAL));
         runSafely(player, "恢复饱食度", () -> player.setFoodLevel(20));
-        runSafely(player, "恢复生命值", () -> player.setHealth(Math.min(20.0, player.getMaxHealth())));
+        runSafely(player, "恢复生命值", () -> player.setHealth(Math.min(20.0, maxHealth(player))));
         runSafely(player, "设置救援保护", () -> player.setNoDamageTicks(Math.max(player.getNoDamageTicks(), 20)));
 
         Counter resolvedCounter = counter;
@@ -321,6 +323,11 @@ public final class PlayerRecoveryService {
             // chests and provider failures that leave the previous loadout untouched.
             BridgingAnalyzer.ensureMenuEntry(player);
         }
+    }
+
+    private static double maxHealth(Player player) {
+        AttributeInstance maxHealth = player.getAttribute(Attribute.MAX_HEALTH);
+        return maxHealth == null ? 20.0 : maxHealth.getValue();
     }
 
     private boolean tryTeleport(Player player, Location target) {

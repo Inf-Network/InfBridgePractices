@@ -45,7 +45,7 @@ public final class PracticeBlockRegistry {
         clearPendingForKey(BlockKey.of(block));
         PlacementLedger.Token<BlockKey, UUID> token = ledger.track(
                 BlockKey.of(block), ownerId, block.getType());
-        BridgingAnalyzer.getPlacedBlocks().put(block, block.getState().getData());
+        BridgingAnalyzer.rememberPlacedBlockSnapshot(block);
         return ledger.current(token.key()).orElseThrow();
     }
 
@@ -56,7 +56,7 @@ public final class PracticeBlockRegistry {
                 ledger.forget(BlockKey.of(block));
         clearPendingForKey(BlockKey.of(block));
         if (removed.isPresent()) {
-            BridgingAnalyzer.getPlacedBlocks().remove(block);
+            BridgingAnalyzer.discardPlacedBlockSnapshot(block);
             Counter.scheduledBreakBlocks.remove(block);
         }
         return removed;
@@ -145,8 +145,7 @@ public final class PracticeBlockRegistry {
             }
             Optional<PlacementLedger.Entry<BlockKey, UUID, Material>> updated =
                     ledger.updateExpected(captured.token(), block.getType());
-            updated.ifPresent(ignored ->
-                    BridgingAnalyzer.getPlacedBlocks().put(block, block.getState().getData()));
+            updated.ifPresent(ignored -> BridgingAnalyzer.rememberPlacedBlockSnapshot(block));
             return updated;
         } finally {
             pendingStateRefreshes.remove(captured.token());
@@ -193,7 +192,7 @@ public final class PracticeBlockRegistry {
                 Optional<PlacementLedger.Entry<BlockKey, UUID, Material>> updated =
                         ledger.updateExpected(entry.token(), Material.SEA_LANTERN);
                 updated.ifPresent(value -> {
-                    BridgingAnalyzer.getPlacedBlocks().put(block, block.getState().getData());
+                    BridgingAnalyzer.rememberPlacedBlockSnapshot(block);
                     prepared.add(value);
                 });
             } catch (RuntimeException exception) {
@@ -303,7 +302,7 @@ public final class PracticeBlockRegistry {
     private void retire(PlacementLedger.Entry<BlockKey, UUID, Material> entry, Block block) {
         if (ledger.removeIfCurrent(entry.token()).isPresent()) {
             pendingStateRefreshes.remove(entry.token());
-            BridgingAnalyzer.getPlacedBlocks().remove(block);
+            BridgingAnalyzer.discardPlacedBlockSnapshot(block);
             Counter.scheduledBreakBlocks.remove(block);
         }
     }

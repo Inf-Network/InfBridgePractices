@@ -5,6 +5,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import net.kyori.adventure.text.Component;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
@@ -17,6 +20,7 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import net.infnetwork.snowball.bridginganalyzer.BridgingAnalyzer;
 import net.infnetwork.snowball.bridginganalyzer.utils.NoAIUtils;
+import net.infnetwork.snowball.bridginganalyzer.utils.ComponentText;
 
 /** Creates and identifies the disposable villagers used as practice targets. */
 public final class PracticeTargetService {
@@ -98,7 +102,7 @@ public final class PracticeTargetService {
     private List<ArmorStand> spawnPoints(World world) {
         List<ArmorStand> spawnPoints = new ArrayList<>();
         for (ArmorStand stand : world.getEntitiesByClass(ArmorStand.class)) {
-            String customName = stand.getCustomName();
+            String customName = ComponentText.customName(stand);
             if (customName != null && customName.contains(SPAWN_POINT_NAME)) {
                 spawnPoints.add(stand);
             }
@@ -144,8 +148,8 @@ public final class PracticeTargetService {
         Byte marker = villager.getPersistentDataContainer()
                 .get(targetKey, PersistentDataType.BYTE);
         boolean tagged = marker != null && marker == (byte) 1;
-        boolean target = matchesIdentity(true, tagged, villager.getCustomName(),
-                villager.hasAI(), villager.getMaxHealth(),
+        boolean target = matchesIdentity(true, tagged, ComponentText.customName(villager),
+                villager.hasAI(), maxHealth(villager),
                 villager.getProfession() == Villager.Profession.LIBRARIAN);
         if (target && !tagged) {
             villager.getPersistentDataContainer().set(targetKey, PersistentDataType.BYTE, (byte) 1);
@@ -170,12 +174,21 @@ public final class PracticeTargetService {
     private void configureTarget(Villager target) {
         target.getPersistentDataContainer().set(targetKey, PersistentDataType.BYTE, (byte) 1);
         target.addPotionEffect(new PotionEffect(
-                PotionEffectType.SLOWNESS, 32766, 254, false, false), true);
+                PotionEffectType.SLOWNESS, 32766, 254, false, false));
         target.setProfession(Villager.Profession.LIBRARIAN);
-        target.setMaxHealth(LEGACY_MAX_HEALTH);
+        AttributeInstance maxHealth = target.getAttribute(Attribute.MAX_HEALTH);
+        if (maxHealth == null) {
+            throw new IllegalStateException("练习靶子缺少最大生命值属性");
+        }
+        maxHealth.setBaseValue(LEGACY_MAX_HEALTH);
         target.setHealth(LEGACY_MAX_HEALTH);
-        target.setCustomName(TARGET_NAME);
+        target.customName(Component.text(TARGET_NAME));
         target.setCustomNameVisible(false);
         NoAIUtils.setAI(target, false);
+    }
+
+    private static double maxHealth(Villager villager) {
+        AttributeInstance maxHealth = villager.getAttribute(Attribute.MAX_HEALTH);
+        return maxHealth == null ? Double.NaN : maxHealth.getValue();
     }
 }

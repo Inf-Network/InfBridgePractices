@@ -8,6 +8,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
 import net.infnetwork.snowball.bridginganalyzer.BridgingAnalyzer;
 import net.infnetwork.snowball.bridginganalyzer.utils.NetworkMessages;
 
@@ -36,7 +37,7 @@ implements CommandExecutor {
                 NetworkMessages.send(sender, "&a\u4f60\u80cc\u5305\u91cc\u6709\u7a3f\u5b50, \u81ea\u5df1\u6316\u5f00=-=");
             }
             ItemStack pickaxe = new ItemStack(Material.GOLDEN_PICKAXE, 1);
-            pickaxe.setDurability((short)27);
+            pickaxe.editMeta(Damageable.class, meta -> meta.setDamage(27));
             p.getInventory().addItem(new ItemStack[]{pickaxe});
             NetworkMessages.send(sender, "&a\u4f60\u4f3c\u4e4e\u4e0d\u5728\u51fa\u751f\u70b9, \u7ed9\u4f60\u4e00\u628a\u7a3f\u5b50, \u88ab\u5361\u4f4f\u8bf7\u81ea\u884c\u6316\u5f00.");
         }

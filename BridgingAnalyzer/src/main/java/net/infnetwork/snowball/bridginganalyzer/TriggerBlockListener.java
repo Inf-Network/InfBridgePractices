@@ -140,12 +140,11 @@ implements Listener {
             spawnLoc.setPitch(e.getPlayer().getLocation().getPitch());
             Counter c = BridgingAnalyzer.getCounter(e.getPlayer());
             c.setCheckPoint(spawnLoc, e.getPlayer());
-            new ParticleRing(e.getTo().getBlock().getLocation().add(0.5, 1.5, 0.5), Particle.CLOUD, 1L){
-
-                @Override
-                public void onFinish() {
-                }
-            };
+            ParticleRing.play(
+                    e.getTo().getBlock().getLocation().add(0.5, 1.5, 0.5),
+                    Particle.CLOUD,
+                    1L,
+                    () -> { });
             TitleUtils.sendTitle(e.getPlayer(), "", "\u00a7a\u4f20\u9001\u70b9\u5df2\u8bbe\u7f6e", 5, 10, 5);
             e.getPlayer().getWorld().playSound(e.getTo(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
         }
@@ -164,13 +163,11 @@ implements Listener {
         }
         if (e.getTo().getBlock().getRelative(BlockFace.DOWN).getType() == Material.REDSTONE_BLOCK) {
             e.getPlayer().setNoDamageTicks(40);
-            new ParticleRing(e.getTo().getBlock().getLocation().add(0.5, 0.1, 0.5), Particle.WITCH, 20L){
-
-                @Override
-                public void onFinish() {
-                    FireworkUtils.shootFirework(e.getPlayer());
-                }
-            };
+            ParticleRing.play(
+                    e.getTo().getBlock().getLocation().add(0.5, 0.1, 0.5),
+                    Particle.WITCH,
+                    20L,
+                    () -> FireworkUtils.shootFirework(e.getPlayer()));
             BridgingAnalyzer.getCounter(e.getPlayer()).vectoryBreakBlock(e.getPlayer());
             TitleUtils.sendTitle(e.getPlayer(), "\u00a76\u00a7lVICTORY", "", 5, 20, 5);
             e.getPlayer().getWorld().playSound(e.getTo(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
@@ -191,12 +188,13 @@ implements Listener {
         if (e.getTo().getBlock().getRelative(BlockFace.DOWN).getType() == Material.LAPIS_BLOCK) {
             e.getPlayer().setNoDamageTicks(40);
             Counter c = BridgingAnalyzer.getCounter(e.getPlayer());
-            c.setCheckPoint(Bukkit.getWorld((String)"world").getSpawnLocation().add(0.5, 1.0, 0.5), e.getPlayer());
+            c.setCheckPoint(Bukkit.getWorld("world").getSpawnLocation().add(0.5, 1.0, 0.5), e.getPlayer());
             c.resetMax();
-            new ParticleRing(e.getTo().getBlock().getLocation().add(0.5, 1.5, 0.5), Particle.FIREWORK, 35L){
-
-                @Override
-                public void onFinish() {
+            ParticleRing.play(
+                    e.getTo().getBlock().getLocation().add(0.5, 1.5, 0.5),
+                    Particle.FIREWORK,
+                    35L,
+                    () -> {
                     BridgingAnalyzer.teleportCheckPoint(e.getPlayer());
                     BridgingAnalyzer.clearEffect(e.getPlayer());
                     if (!e.getPlayer().isOp()) {
@@ -205,8 +203,7 @@ implements Listener {
                         e.getPlayer().getInventory().setLeggings(null);
                         e.getPlayer().getInventory().setBoots(null);
                     }
-                }
-            };
+                });
             TitleUtils.sendTitle(e.getPlayer(), "", "\u00a7b\u6b63\u5728\u8fd4\u56de\u51fa\u751f\u70b9...", 5, 25, 5);
             e.getPlayer().getWorld().playSound(e.getTo(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.0f);
         }
@@ -225,7 +222,7 @@ implements Listener {
         }
         if (e.getTo().getBlock().getType() == Material.LIGHT_WEIGHTED_PRESSURE_PLATE) {
             e.getPlayer().setNoDamageTicks(20);
-            e.getPlayer().addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 100, 2), true);
+            e.getPlayer().addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 100, 2));
         }
     }
 
@@ -249,16 +246,18 @@ implements Listener {
             if (to.getType() == Material.BEACON) {
                 e.getPlayer().setNoDamageTicks(50);
                 final Block teleportTarget = to;
-                new TeleportRingEffect(e.getTo().getBlock().getLocation().add(0.5, 0.0, 0.5), teleportTarget.getLocation().add(0.5, 1.0, 0.5), 1L, 0, 40){
-
-                    @Override
-                    public void onFinish() {
+                TeleportRingEffect.play(
+                        e.getTo().getBlock().getLocation().add(0.5, 0.0, 0.5),
+                        teleportTarget.getLocation().add(0.5, 1.0, 0.5),
+                        1L,
+                        0,
+                        40,
+                        () -> {
                         Location loc = teleportTarget.getLocation().add(0.5, 1.5, 0.5);
                         loc.setYaw(e.getPlayer().getLocation().getYaw());
                         loc.setPitch(e.getPlayer().getLocation().getPitch());
                         e.getPlayer().teleport(loc);
-                    }
-                };
+                    });
                 e.getPlayer().getWorld().playSound(e.getTo(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
             }
         }
@@ -284,16 +283,18 @@ implements Listener {
             if (to.getType() == Material.BEACON) {
                 e.getPlayer().setNoDamageTicks(50);
                 final Block teleportTarget = to;
-                new TeleportRingEffect(e.getPlayer().getLocation().getBlock().getLocation().add(0.5, 0.0, 0.5), teleportTarget.getLocation().add(0.5, 1.0, 0.5), 1L, 10, 40){
-
-                    @Override
-                    public void onFinish() {
+                TeleportRingEffect.play(
+                        e.getPlayer().getLocation().getBlock().getLocation().add(0.5, 0.0, 0.5),
+                        teleportTarget.getLocation().add(0.5, 1.0, 0.5),
+                        1L,
+                        10,
+                        40,
+                        () -> {
                         Location loc = teleportTarget.getLocation().add(0.5, 1.5, 0.5);
                         loc.setYaw(e.getPlayer().getLocation().getYaw());
                         loc.setPitch(e.getPlayer().getLocation().getPitch());
                         e.getPlayer().teleport(loc);
-                    }
-                };
+                    });
                 e.getPlayer().getWorld().playSound(e.getPlayer().getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
             }
         }

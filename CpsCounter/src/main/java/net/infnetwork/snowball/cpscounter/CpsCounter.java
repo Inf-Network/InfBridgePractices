@@ -4,25 +4,21 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.UUID;
 import org.bukkit.Bukkit;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
-import net.infnetwork.snowball.cpscounter.CPSCommand;
-import net.infnetwork.snowball.cpscounter.Counter;
-import net.infnetwork.snowball.cpscounter.MonitorThread;
 
 public class CpsCounter
 extends JavaPlugin
 implements Listener {
     private static CpsCounter instance;
-    private final HashMap<UUID, Counter> counter = new HashMap();
-    private final HashMap<UUID, MonitorThread> monitors = new HashMap();
-    private final HashSet<Player> silentPlayer = new HashSet();
+    private final HashMap<UUID, Counter> counter = new HashMap<>();
+    private final HashMap<UUID, MonitorThread> monitors = new HashMap<>();
+    private final HashSet<Player> silentPlayer = new HashSet<>();
 
     public static Counter getCounter(Player p) {
         Counter c = CpsCounter.instance.counter.get(p.getUniqueId());
@@ -35,14 +31,14 @@ implements Listener {
 
     public void onEnable() {
         instance = this;
-        Bukkit.getPluginManager().registerEvents((Listener)this, (Plugin)this);
-        this.getCommand("cps").setExecutor((CommandExecutor)new CPSCommand());
+        Bukkit.getPluginManager().registerEvents(this, this);
+        this.getCommand("cps").setExecutor(new CPSCommand());
     }
 
     @EventHandler
     public void onClick(PlayerInteractEvent e) {
         if (e.getAction().toString().startsWith("LEFT_CLICK_")) {
-            if (e.isCancelled()) {
+            if (e.useInteractedBlock() == Event.Result.DENY) {
                 return;
             }
             Counter c = CpsCounter.getCounter(e.getPlayer());

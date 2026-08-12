@@ -9,6 +9,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
@@ -126,8 +129,13 @@ public final class SkinEditCommand implements CommandExecutor {
             Inventory inventory = Bukkit.createInventory(
                     holder,
                     INVENTORY_SIZE,
-                    "§6§l编辑皮肤: §f" + target.player + " §8(" + (page + 1)
-                            + "/" + totalPages + ")");
+                    Component.empty()
+                            .append(Component.text(
+                                    "编辑皮肤: ", NamedTextColor.GOLD, TextDecoration.BOLD))
+                            .append(Component.text(target.player + " ", NamedTextColor.WHITE))
+                            .append(Component.text(
+                                    "(" + (page + 1) + "/" + totalPages + ")",
+                                    NamedTextColor.DARK_GRAY)));
             holder.attach(inventory);
 
             String selected = target.currentSkin == null ? "" : target.currentSkin.material;
@@ -143,14 +151,31 @@ public final class SkinEditCommand implements CommandExecutor {
     private static ItemStack catalogItem(Material material, boolean owned, boolean selected) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        String status = owned ? "§a§l已拥有" : "§7未拥有";
-        meta.setDisplayName(status + " §f" + material.name());
+        Component status = owned
+                ? Component.text("已拥有", NamedTextColor.GREEN, TextDecoration.BOLD)
+                : Component.text("未拥有", NamedTextColor.GRAY);
+        meta.displayName(SkinSelectCommand.itemComponent(Component.empty()
+                .append(status)
+                .append(Component.text(" " + material.name(), NamedTextColor.WHITE))));
         if (material == Material.CUT_SANDSTONE) {
-            meta.setLore(List.of("§e保底皮肤，不能移除", selected ? "§b当前正在使用" : "§7"));
+            meta.lore(List.of(
+                    SkinSelectCommand.itemComponent(Component.text(
+                            "保底皮肤，不能移除", NamedTextColor.YELLOW)),
+                    selected
+                            ? SkinSelectCommand.itemComponent(Component.text(
+                                    "当前正在使用", NamedTextColor.AQUA))
+                            : Component.empty()));
         } else if (owned) {
-            meta.setLore(List.of("§c点击移除此皮肤", selected ? "§b当前正在使用" : "§7"));
+            meta.lore(List.of(
+                    SkinSelectCommand.itemComponent(Component.text(
+                            "点击移除此皮肤", NamedTextColor.RED)),
+                    selected
+                            ? SkinSelectCommand.itemComponent(Component.text(
+                                    "当前正在使用", NamedTextColor.AQUA))
+                            : Component.empty()));
         } else {
-            meta.setLore(List.of("§a点击添加此皮肤"));
+            meta.lore(List.of(SkinSelectCommand.itemComponent(Component.text(
+                    "点击添加此皮肤", NamedTextColor.GREEN))));
         }
         meta.setEnchantmentGlintOverride(owned);
         item.setItemMeta(meta);
@@ -158,20 +183,28 @@ public final class SkinEditCommand implements CommandExecutor {
     }
 
     private static void decorateNavigation(Inventory inventory, int page, int totalPages) {
-        ItemStack filler = SkinSelectCommand.namedItem(Material.GRAY_STAINED_GLASS_PANE, "§8");
+        ItemStack filler = SkinSelectCommand.namedItem(
+                Material.GRAY_STAINED_GLASS_PANE, Component.empty());
         for (int slot = SkinEditHolder.CONTENT_SIZE; slot < INVENTORY_SIZE; slot++) {
             inventory.setItem(slot, filler);
         }
         if (page > 0) {
             inventory.setItem(SkinEditHolder.PREVIOUS_SLOT,
-                    SkinSelectCommand.namedItem(Material.ARROW, "§e上一页"));
+                    SkinSelectCommand.namedItem(
+                            Material.ARROW,
+                            Component.text("上一页", NamedTextColor.YELLOW)));
         }
         inventory.setItem(SkinEditHolder.PAGE_SLOT,
                 SkinSelectCommand.namedItem(
-                        Material.PAPER, "§b第 " + (page + 1) + " / " + totalPages + " 页"));
+                        Material.PAPER,
+                        Component.text(
+                                "第 " + (page + 1) + " / " + totalPages + " 页",
+                                NamedTextColor.AQUA)));
         if (page + 1 < totalPages) {
             inventory.setItem(SkinEditHolder.NEXT_SLOT,
-                    SkinSelectCommand.namedItem(Material.ARROW, "§e下一页"));
+                    SkinSelectCommand.namedItem(
+                            Material.ARROW,
+                            Component.text("下一页", NamedTextColor.YELLOW)));
         }
     }
 
