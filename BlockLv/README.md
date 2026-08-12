@@ -136,7 +136,7 @@ gradle -p .. :BlockLv:build
 |---|---|---|
 | `/blocklv add <玩家> <经验>` | `blocklv.add` | 增加经验 |
 | `/blocklv clear <玩家>` | `blocklv.clear` | 清空等级与经验 |
-| `/blocklv setrank` | — | 把排行榜全息设到当前位置 |
+| `/blocklv setrank` | `blocklv.setrank` | 把排行榜全息设到当前位置 |
 | `/blocklv refresh` | `blocklv.refresh` | 立即刷新排行榜 |
 
 | 占位符 | 含义 |

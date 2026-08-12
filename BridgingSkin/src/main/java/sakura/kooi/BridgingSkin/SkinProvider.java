@@ -22,7 +22,8 @@ implements BlockSkinProvider {
     public ItemStack provide(Player player) {
         SkinSet skin = BridgingSkin.getSkin((String)player.getName(), (String)player.getUniqueId().toString()).currentSkin;
         Material material = Material.getMaterial((String)skin.material);
-        if (material == null || IllegalMaterial.isIllegal(material)) {
+        if (material == null || !material.isBlock() || !material.isItem()
+                || IllegalMaterial.isIllegal(material)) {
             material = Material.CUT_SANDSTONE;
         }
         // 原版此处还有一句 "material 是 SANDSTONE 就把 data 强制成 2",
@@ -30,4 +31,3 @@ implements BlockSkinProvider {
         return new ItemStack(material, 64);
     }
 }
-

@@ -1,69 +1,72 @@
-# BridgingSkin — 1.21.11 移植版
+# BridgingSkin v4
 
-搭路方块皮肤选择。给 BridgingAnalyzer 提供 `BlockSkinProvider`,让玩家自选搭路用的方块。
+为 BridgingAnalyzer 提供方块皮肤，并加入 Vault 付费抽奖、FAWE/WorldEdit 抽奖箱注册、
+SQLite/PostgreSQL 双后端和旧 JSON 安全迁移。默认皮肤仍是 `CUT_SANDSTONE`（1.8 的
+`SANDSTONE:2`），`SEA_LANTERN` 因胜利破坏机制冲突而永久禁用。
 
-## 出处与许可
+## 身份与数据
 
-上游 **[SakuraKoi/BridgingSkin](https://github.com/SakuraKoi/BridgingSkin)**,原作者 **SakuraKooi**。
-本目录是 v3 的 1.21.11 移植版,源码取自对 `bridge/plugins/BlockSkin.disabled` 的
-CFR 0.152 反编译 —— 那个文件其实就是 BridgingSkin v3 的 jar,被重命名成 `.disabled` 关掉了。
+- 当前数据的唯一主键是后端 `Player#getUniqueId()`。启用 UniversalAuth 后，这就是稳定的
+  `profileUuid`；玩家名仅用于显示和首次迁移匹配。
+- 默认后端是 `plugins/BridgingSkin/skins.db`（SQLite）；在 `config.yml` 把
+  `database.type` 改为 `postgresql`（也接受 `pgsql`/`postgres`）并填写连接信息即可切换。
+- 旧 `skins/*.json` 不会删除、改名或直接写进当前 UUID 表。插件会先严格验证整个目录，
+  再在一个事务中导入 legacy staging；玩家认证完成后按唯一名字事务认领。
+- 测试服冻结语料是 3176 个玩家文件、3177 条拥有记录。全量 SQLite 导入、幂等复跑和
+  真实 PostgreSQL 的建表/认领/保存均有集成测试。
+- 当前离线 UUID 已认领的数据，未来切换 UniversalAuth 随机 UUID 时，可在旧 UUID、名字
+  均通过验证的前提下自动完成一次安全升级。冲突会拒绝加载，不会创建默认记录覆盖旧数据。
+- PostgreSQL 模式按一个练习服实例写入设计；不要让多个 Paper 实例同时共享写入同一套皮肤表。
 
-包名保留 `sakura.kooi` 以尊重出处。
+## 抽奖
 
-> **注意:原服 1.8.8 的启动日志里没有 BridgingSkin,它当年就没在跑。**
-> 移植它属于恢复一个被停用的功能,不是还原线上现状。
+抽奖只通过标准 Vault `Economy` 接口扣款，当前可使用 VaultUnlocked + EssentialsX Economy，
+以后替换经济插件不需要改 BridgingSkin。
 
-## 相对原版的改动
+流程固定为：确定未拥有奖励 → Vault 扣款 → 整批奖励事务入库 → 播放展示动画。授权失败会
+按实际扣款退款；动画中断、传送或掉线不会丢奖励。十连批内不重复，剩余不足 10 种时会拒绝
+十连并提示改用单抽。动画中间一排方块向左滚动，上下两排彩色玻璃板分别向左、向右滚动；
+结果物品名使用 Minecraft 客户端自带翻译，因此中文客户端会显示官方中文方块名。
 
-| 改动 | 原因 |
-|---|---|
-| **删掉 `SkinSet.data` 字节字段** | 1.13 扁平化后方块变体各自是独立 `Material`,data 不再承载信息。存量数据已在迁移时一次性转换 |
-| 10 处物料改名 | `DIODE`→`REPEATER`、`PISTON_BASE`→`PISTON`、`WOOD_PLATE`→`OAK_PRESSURE_PLATE` 等,见 `IllegalMaterial.java` |
-| 新增 `SkinSelectHolder`,不再比对菜单标题 | `Inventory#getTitle()` 1.14 起已移除(标题属于 `InventoryView`)。改用自定义 `InventoryHolder` 按类型识别,比字符串比对可靠,也不会被玩家用同名箱子骗过 |
-| 剥离内嵌 gson | 原版把整个 gson shade 进 jar(`sakura.lib.com.google.gson`,69 个类)。服务端 `libraries/` 下已有,改成 `provided` |
-| `onSetSkin` 加主手判定 | 1.9 起 `PlayerInteractEvent` 主手/副手各触发一次,不拦会重复添加皮肤 |
-| 重写 `loadSkin()` | CFR 把原版的 try-with-resources 反编译成了 `Collections.singletonList(reader).get(0)` 判空加标签跳转的怪结构,且没接住受检异常,根本编译不过 |
-| 移除 bStats 统计 | 依赖 BridgingAnalyzer 的 `Metrics` 类,后者因 `org.json.simple` 已在移植中删除 |
-| `/bskin-edit clear` 去掉 `[data]` 参数 | 同上,data 已无意义 |
+奖池是 200 多种人工白名单中的完整 1×1×1 实体方块。半砖、楼梯、容器、重力方块、触发块、
+西瓜和海晶灯都不能进入奖池。首次启动会把完整列表写入 `lottery.prize-pool`，管理员可删减或
+调整顺序；非法条目启动时会被忽略。
 
-### 关于「平滑砂岩」
+费用位于：
 
-1.8 的默认皮肤是 `SANDSTONE:2`,当年菜单里叫**平滑砂岩**。扁平化后它叫 **`CUT_SANDSTONE`**。
-
-1.21 里另有一个 `SMOOTH_SANDSTONE`,那是 1.13 新增的熔炼产物,材质不一样 —— **别搞混**。
-这个映射不是猜的,是拿升级后的 `world/region/*.mca` 方块调色板核对出来的:
-升级后的地图里只出现 `cut_sandstone`,没有 `smooth_sandstone`。
-
-## 数据迁移
-
-原服 3175 份皮肤文件存的是 1.8 的 `{"Material": "SANDSTONE", "Data": 2}`。
-迁移时将 `(Material, Data)` 折叠成单个 1.21 Material 名并删除 `Data` 键。
-未登记的组合不能靠猜测转换,否则会让老玩家的皮肤静默变样。
-
-实际数据里只有两种组合:`SANDSTONE:2`(6349 处)和 `DIAMOND_BLOCK:0`(2 处)。
-
-> 皮肤文件含玩家名与 UUID,已在 `.gitignore` 里排除,不入库。
-
-## 构建
-
-项目使用 Gradle Kotlin DSL 与 JDK 21。`BridgingSkin` 通过项目依赖引用
-`BridgingAnalyzer`,Gradle 会自动按正确顺序构建。
-
-```bash
-gradle -p .. :BridgingSkin:build
+```yaml
+lottery:
+  single-cost: 100.0
+  ten-cost: 900.0
 ```
-
-产物 `build/libs/BridgingSkin-3-1.21.11.jar`。
 
 ## 命令与权限
 
 | 命令 | 权限 | 作用 |
 |---|---|---|
-| `/bskin` | — | 打开皮肤库存,点选切换 |
-| `/bskin-edit edit <player>` | `bridgingSkin.admin` | 编辑指定玩家的皮肤库存(关闭箱子时以箱内容为准覆盖) |
-| `/bskin-edit clear <material>` | `bridgingSkin.admin` | 从所有玩家库存里清掉某个方块 |
+| `/bskin` | 无 | 分页查看已拥有皮肤并切换 |
+| `/bskin-edit edit <player>` | `bridgingSkin.admin`（OP） | 分页增删玩家皮肤，即时事务保存 |
+| `/bskin-edit clear <material>` | `bridgingSkin.admin`（OP） | 从当前与未认领旧数据中全局清除皮肤；默认砂岩不可清除 |
+| `/bskin-crate set` | `bridgingskin.admin.crate`（OP） | 追加注册 FAWE/WorldEdit 选中的单个末影箱；可重复注册多个位置 |
+| `/bskin-crate remove` | 同上 | 移除当前单方块选区对应的一个抽奖箱 |
+| `/bskin-crate clear` | 同上 | 清除全部已注册抽奖箱 |
+| `/bskin-crate info` 或 `list` | 同上 | 列出全部已注册抽奖箱及坐标 |
 
-玩家手持 lore 含 `§6皮肤方块` 的物品右键,即可把该方块收进自己的皮肤库存。
+注册时选区必须恰好一个方块，且当前方块必须是 `ENDER_CHEST`。已注册抽奖箱会阻止原版打开、
+破坏、爆炸和活塞移动；即使 WorldGuard 区域禁止 `use/chest-access`，自定义菜单仍可打开。
+旧版单一 `lottery.crate` 坐标会在启动时无损迁移到新的 `lottery.crates` 列表。
 
-`IllegalMaterial` 里列了 24 种禁用方块(红石元件、活塞、铁砧、砂砾等),
-选中会被自动剔除并回退到 `CUT_SANDSTONE`。
+## 构建与测试
+
+使用 JDK 21 和 Gradle Kotlin DSL：
+
+```bash
+gradle :BridgingSkin:build
+```
+
+产物为 `BridgingSkin/build/libs/BridgingSkin-4-1.21.11.jar`。普通测试使用临时 SQLite；可选
+环境变量 `BRIDGING_SKIN_CORPUS` 验证真实旧 JSON 目录，`BRIDGING_SKIN_PG_URL` 验证真实
+PostgreSQL。
+
+上游为 [SakuraKoi/BridgingSkin](https://github.com/SakuraKoi/BridgingSkin)，包名保留
+`sakura.kooi`。本目录是在其 v3 反编译移植基础上的 v4 模块化实现。

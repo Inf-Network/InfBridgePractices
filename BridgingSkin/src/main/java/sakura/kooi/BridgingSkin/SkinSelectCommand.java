@@ -1,20 +1,10 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.Bukkit
- *  org.bukkit.Material
- *  org.bukkit.command.Command
- *  org.bukkit.command.CommandExecutor
- *  org.bukkit.command.CommandSender
- *  org.bukkit.entity.Player
- *  org.bukkit.inventory.Inventory
- *  org.bukkit.inventory.ItemStack
- *  org.bukkit.inventory.meta.ItemMeta
- */
 package sakura.kooi.BridgingSkin;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
@@ -22,55 +12,95 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import sakura.kooi.BridgingSkin.BridgingSkin;
-import sakura.kooi.BridgingSkin.IllegalMaterial;
-import sakura.kooi.BridgingSkin.data.SkinSet;
+import sakura.kooi.BridgingSkin.data.PlayerSkin;
 
-public class SkinSelectCommand
-implements CommandExecutor {
+/** Opens the UUID-bound, paged player skin selector. */
+public final class SkinSelectCommand implements CommandExecutor {
+    private static final int INVENTORY_SIZE = 54;
+
+    @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        Material material;
-        if (!(sender instanceof Player)) {
-            sender.sendMessage("&bI&en&cf &eBridge &7\u00bb \u00a7c\u4ec5\u73a9\u5bb6\u53ef\u4ee5\u6267\u884c.");
+        if (!(sender instanceof Player player)) {
+            NetworkMessages.send(sender, "&c仅玩家可以执行.");
             return true;
         }
-        Player p = (Player)sender;
-        SkinSelectHolder holder = new SkinSelectHolder();
-        Inventory inv = Bukkit.createInventory((InventoryHolder)holder, (int)54, (String)"\u00a76\u00a7l\u76ae\u80a4\u5e93\u5b58");
-        holder.setInv(inv);
-        ArrayList<SkinSet> illegalSkins = new ArrayList<SkinSet>();
-        for (SkinSet skin : BridgingSkin.getSkin((String)p.getName(), (String)p.getUniqueId().toString()).allSkin) {
-            material = Material.getMaterial((String)skin.material);
-            if (material == null) {
-                illegalSkins.add(skin);
-                continue;
-            }
-            if (!IllegalMaterial.isIllegal(material)) continue;
-            illegalSkins.add(skin);
-        }
-        if (!illegalSkins.isEmpty()) {
-            BridgingSkin.getSkin((String)p.getName(), (String)p.getUniqueId().toString()).allSkin.removeAll(illegalSkins);
-            sender.sendMessage("&bI&en&cf &eBridge &7\u00bb \u00a7c\u5728\u4f60\u7684\u76ae\u80a4\u5e93\u5b58\u53d1\u73b0\u4e86\u4e00\u4e9b\u65e0\u6548\u7269\u54c1, \u5df2\u81ea\u52a8\u5220\u9664.");
-        }
-        for (SkinSet skin : BridgingSkin.getSkin((String)p.getName(), (String)p.getUniqueId().toString()).allSkin) {
-            ItemStack stack;
-            material = Material.getMaterial((String)skin.material);
-            if (material == null) {
-                material = Material.BARRIER;
-                stack = new ItemStack(material, 64);
-                ItemMeta meta = stack.getItemMeta();
-                meta.setDisplayName("\u00a7c\u65e0\u6548\u76ae\u80a4 \u6570\u636e\u9519\u8bef");
-                stack.setItemMeta(meta);
-            } else {
-                stack = new ItemStack(material, 64);
-            }
-            inv.addItem(new ItemStack[]{stack});
-        }
-        p.openInventory(inv);
+        openPage(player, 0);
         return true;
     }
-}
 
+    public static void openPage(Player player, int requestedPage) {
+        try {
+            SkinService service = BridgingSkin.getSkinService();
+            PlayerSkin skin = service.getOrCreate(player);
+            List<Material> materials = new ArrayList<>(service.ownedMaterials(player));
+            materials.sort(Comparator.comparing(Material::name));
+
+            int totalPages = Math.max(1,
+                    (materials.size() + SkinSelectHolder.CONTENT_SIZE - 1)
+                            / SkinSelectHolder.CONTENT_SIZE);
+            int page = Math.max(0, Math.min(requestedPage, totalPages - 1));
+            int fromIndex = page * SkinSelectHolder.CONTENT_SIZE;
+            int toIndex = Math.min(fromIndex + SkinSelectHolder.CONTENT_SIZE, materials.size());
+
+            Map<Integer, Material> slots = new LinkedHashMap<>();
+            for (int index = fromIndex; index < toIndex; index++) {
+                slots.put(index - fromIndex, materials.get(index));
+            }
+
+            SkinSelectHolder holder = new SkinSelectHolder(
+                    player.getUniqueId(), page, totalPages, slots);
+            Inventory inventory = Bukkit.createInventory(
+                    holder,
+                    INVENTORY_SIZE,
+                    "§6§l皮肤库存 §8(" + (page + 1) + "/" + totalPages + ")");
+            holder.attach(inventory);
+
+            String currentMaterial = skin.currentSkin == null ? "" : skin.currentSkin.material;
+            slots.forEach((slot, material) -> inventory.setItem(
+                    slot, skinItem(material, material.name().equals(currentMaterial))));
+            decorateNavigation(inventory, page, totalPages);
+            player.openInventory(inventory);
+        } catch (RuntimeException exception) {
+            BridgingSkin.getInstance().getLogger().severe(
+                    "无法打开 " + player.getName() + " 的皮肤菜单: " + exception.getMessage());
+            NetworkMessages.send(player, "&c皮肤数据读取失败，请稍后重试.");
+        }
+    }
+
+    private static ItemStack skinItem(Material material, boolean selected) {
+        ItemStack item = new ItemStack(material, 64);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName((selected ? "§a§l当前皮肤 §f" : "§e") + material.name());
+        meta.setLore(List.of(selected ? "§a正在使用" : "§7点击选择此皮肤"));
+        meta.setEnchantmentGlintOverride(selected);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    static void decorateNavigation(Inventory inventory, int page, int totalPages) {
+        ItemStack filler = namedItem(Material.GRAY_STAINED_GLASS_PANE, "§8");
+        for (int slot = SkinSelectHolder.CONTENT_SIZE; slot < INVENTORY_SIZE; slot++) {
+            inventory.setItem(slot, filler);
+        }
+        if (page > 0) {
+            inventory.setItem(SkinSelectHolder.PREVIOUS_SLOT,
+                    namedItem(Material.ARROW, "§e上一页"));
+        }
+        inventory.setItem(SkinSelectHolder.PAGE_SLOT,
+                namedItem(Material.PAPER, "§b第 " + (page + 1) + " / " + totalPages + " 页"));
+        if (page + 1 < totalPages) {
+            inventory.setItem(SkinSelectHolder.NEXT_SLOT,
+                    namedItem(Material.ARROW, "§e下一页"));
+        }
+    }
+
+    static ItemStack namedItem(Material material, String name) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(name);
+        item.setItemMeta(meta);
+        return item;
+    }
+}

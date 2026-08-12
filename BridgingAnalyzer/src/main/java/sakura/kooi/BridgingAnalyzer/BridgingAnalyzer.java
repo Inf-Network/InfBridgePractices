@@ -143,12 +143,19 @@ implements Listener {
     public static void restorePracticeLoadout(Player p) {
         // Resolve the skin item before touching the inventory. A broken provider must not
         // delete the player's current items and then fail to supply the replacement stack.
-        ItemStack practiceBlocks = blockSkinProvider.provide(p);
-        if (practiceBlocks == null || practiceBlocks.getType().isAir()) {
-            throw new IllegalStateException("方块皮肤提供器返回了空物品");
-        }
+        ItemStack practiceBlocks = resolvePracticeBlocks(p);
         BridgingAnalyzer.clearInventory(p);
         p.getInventory().addItem(new ItemStack[]{practiceBlocks});
+    }
+
+    /** Resolve one detached stack from the currently installed skin provider. */
+    static ItemStack resolvePracticeBlocks(Player player) {
+        ItemStack practiceBlocks = blockSkinProvider.provide(player);
+        if (practiceBlocks == null || practiceBlocks.getType().isAir()
+                || !practiceBlocks.getType().isBlock() || !practiceBlocks.getType().isItem()) {
+            throw new IllegalStateException("方块皮肤提供器返回了无效方块物品");
+        }
+        return practiceBlocks.clone();
     }
 
     /** Apply the checkpoint chest when present, or the standard practice block otherwise. */

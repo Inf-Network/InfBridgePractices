@@ -221,11 +221,21 @@ public class Counter {
         if (target.getType() != Material.CHEST) {
             return false;
         }
-        BridgingAnalyzer.clearInventory(player);
         Chest chest = (Chest)target.getState();
-        for (ItemStack stack : chest.getBlockInventory().getContents()) {
-            if (stack == null) continue;
-            Utils.addItem(player.getInventory(), stack.clone());
+        // Resolve the complete kit before clearing anything. Plain SANDSTONE in a
+        // preset chest is a placeholder for the player's selected block skin.
+        // The chest itself is never modified.
+        CheckpointLoadoutResolver.Resolution loadout = CheckpointLoadoutResolver.resolve(
+                chest.getBlockInventory().getContents(),
+                () -> BridgingAnalyzer.resolvePracticeBlocks(player));
+        BridgingAnalyzer.clearInventory(player);
+        for (ItemStack stack : loadout.items()) {
+            Utils.addItem(player.getInventory(), stack);
+        }
+        if (loadout.skinFailure() != null) {
+            BridgingAnalyzer.getInstance().getLogger().warning(
+                    "无法读取 " + player.getName() + " 的当前方块皮肤，检查点套装已保留原砂岩: "
+                            + loadout.skinFailure().getMessage());
         }
         try {
             player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 1.0f);

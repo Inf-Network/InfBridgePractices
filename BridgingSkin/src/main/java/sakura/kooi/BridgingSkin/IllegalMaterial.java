@@ -41,6 +41,9 @@ public class IllegalMaterial {
         illegalMaterial.add(Material.SLIME_BLOCK);
         illegalMaterial.add(Material.ANVIL);
         illegalMaterial.add(Material.GRAVEL);
+        // Analyzer uses melon as the knockback trigger and sea lantern as the
+        // temporary victory/break marker. They can never be player skins.
+        illegalMaterial.add(Material.MELON);
+        illegalMaterial.add(Material.SEA_LANTERN);
     }
 }
-

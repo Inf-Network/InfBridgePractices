@@ -1,0 +1,22 @@
+database:
+  # Local/test backend. PostgreSQL can be enabled later without changing UUID semantics.
+  type: sqlite
+  postgresql:
+    host: localhost
+    port: 5432
+    database: CHANGE_ME
+    user: CHANGE_ME
+    password: CHANGE_ME
+
+lottery:
+  # Uses the currently registered Vault Economy provider (EssentialsX works).
+  single-cost: 100.0
+  ten-cost: 900.0
+  animation:
+    duration-ticks: 50
+    interval-ticks: 2
+  # Registered END_CHEST locations are managed with /bskin-crate set/remove/clear.
+  # The plugin writes lottery.crates here and migrates the old lottery.crate entry automatically.
+  # On first startup this is expanded to the full curated solid-block list.
+  # Sea lantern and gameplay/trigger blocks are always rejected even if added here.
+  prize-pool: []
