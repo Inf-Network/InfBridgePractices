@@ -39,6 +39,7 @@ package sakura.kooi.BridgingAnalyzer;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
@@ -80,6 +81,9 @@ import sakura.kooi.BridgingAnalyzer.commands.ClearCommand;
 import sakura.kooi.BridgingAnalyzer.commands.SaveWorldCommand;
 import sakura.kooi.BridgingAnalyzer.commands.StuckCommand;
 import sakura.kooi.BridgingAnalyzer.commands.VillagerSpawnPointCommand;
+import sakura.kooi.BridgingAnalyzer.menu.BukkitMenuRuntime;
+import sakura.kooi.BridgingAnalyzer.menu.MenuSubsystem;
+import sakura.kooi.BridgingAnalyzer.menuentry.MenuEntryService;
 import sakura.kooi.BridgingAnalyzer.recovery.PlayerRecoveryService;
 import sakura.kooi.BridgingAnalyzer.recovery.VoidSafetyListener;
 import sakura.kooi.BridgingAnalyzer.recovery.VoidSafetyPolicy;
@@ -89,6 +93,7 @@ import sakura.kooi.BridgingAnalyzer.targets.PracticeTargetService;
 import sakura.kooi.BridgingAnalyzer.trigger.MelonKnockbackController;
 import sakura.kooi.BridgingAnalyzer.utils.TitleUtils;
 import sakura.kooi.BridgingAnalyzer.utils.Utils;
+import sakura.kooi.BridgingAnalyzer.utils.NetworkMessages;
 
 public class BridgingAnalyzer
 extends JavaPlugin
@@ -100,6 +105,9 @@ implements Listener {
     private PlayerRecoveryService recoveryService;
     private MelonKnockbackController melonKnockbackController;
     private PracticeTargetService practiceTargetService;
+    private BukkitMenuRuntime menuRuntime;
+    private MenuSubsystem menuSubsystem;
+    private MenuEntryService menuEntryService;
 
     public static void clearEffect(Player player) {
         for (PotionEffect eff : player.getActivePotionEffects()) {
@@ -115,6 +123,38 @@ implements Listener {
             if (item != null && item.getItemMeta() != null && item.getItemMeta().getDisplayName() != null && item.getItemMeta().getDisplayName().contains("Key")) continue;
             inv.setItem(i, null);
         }
+        ensureMenuEntry(p);
+    }
+
+    /** Keep the native menu entry present after every inventory/loadout rebuild. */
+    public static void ensureMenuEntry(Player player) {
+        if (instance != null && instance.menuEntryService != null) {
+            instance.menuEntryService.ensure(player);
+        }
+    }
+
+    /** Clear every tracked practice block without requiring an operator command. */
+    public static boolean clearAllPracticeBlocks() {
+        boolean successful = true;
+        for (Counter counter : sessions.values()) {
+            try {
+                counter.instantBreakBlock();
+            } catch (RuntimeException exception) {
+                successful = false;
+                instance.getLogger().warning("清理玩家搭路方块时失败: " + exception.getMessage());
+            }
+        }
+        for (Block block : new HashSet<>(Counter.scheduledBreakBlocks)) {
+            try {
+                block.setType(Material.AIR);
+                placedBlocks.remove(block);
+                Counter.scheduledBreakBlocks.remove(block);
+            } catch (RuntimeException exception) {
+                successful = false;
+                instance.getLogger().warning("清理延迟方块时失败: " + exception.getMessage());
+            }
+        }
+        return successful;
     }
 
     public static Counter getCounter(Player p) {
@@ -234,6 +274,15 @@ implements Listener {
     }
 
     public void onDisable() {
+        if (this.menuEntryService != null) {
+            this.menuEntryService.close();
+        }
+        if (this.menuSubsystem != null) {
+            this.menuSubsystem.close();
+        }
+        if (this.menuRuntime != null) {
+            this.menuRuntime.close();
+        }
         if (this.melonKnockbackController != null) {
             this.melonKnockbackController.shutdown();
         }
@@ -258,13 +307,20 @@ implements Listener {
         // 它依赖 org.json.simple —— 该库在 Spigot 1.8 内置、现代服务端已移除;
         // 而这只是给上游作者看的匿名用量统计,对玩法零贡献,Paper 自身也已内置 bStats。
         blockSkinProvider = new DefaultBlockSkinProvider();
+        this.menuRuntime = new BukkitMenuRuntime(
+                this, player -> BridgingAnalyzer.clearAllPracticeBlocks());
+        this.menuSubsystem = MenuSubsystem.load(this, this.menuRuntime.dependencies());
+        this.menuEntryService = new MenuEntryService(
+                this, this.menuSubsystem::openMain, this.menuSubsystem.itemPermission());
         this.recoveryService = new PlayerRecoveryService(this,
                 new VoidSafetyPolicy(VoidSafetyPolicy.DEFAULT_FAILURE_HEIGHT));
         this.melonKnockbackController = new MelonKnockbackController(this, this.recoveryService);
         this.practiceTargetService = new PracticeTargetService(this);
         PluginManager pluginManager = Bukkit.getPluginManager();
         pluginManager.registerEvents((Listener)this, (Plugin)this);
-        pluginManager.registerEvents((Listener)new CounterListener(), (Plugin)this);
+        pluginManager.registerEvents((Listener)this.menuSubsystem, (Plugin)this);
+        pluginManager.registerEvents((Listener)this.menuEntryService, (Plugin)this);
+        pluginManager.registerEvents((Listener)new CounterListener(this.menuEntryService::isMenuItem), (Plugin)this);
         pluginManager.registerEvents((Listener)new HighlightListener(), (Plugin)this);
         pluginManager.registerEvents((Listener)new TriggerBlockListener(), (Plugin)this);
         pluginManager.registerEvents((Listener)new VoidSafetyListener(this.recoveryService), (Plugin)this);
@@ -276,6 +332,25 @@ implements Listener {
         this.getCommand("bsaveworld").setExecutor((CommandExecutor)new SaveWorldCommand());
         this.getCommand("imstuck").setExecutor((CommandExecutor)new StuckCommand());
         this.getCommand("genvillager").setExecutor((CommandExecutor)new VillagerSpawnPointCommand());
+        this.getCommand("cd").setExecutor((sender, command, label, args) -> {
+            if (!(sender instanceof Player player)) {
+                NetworkMessages.send(sender, "&c仅玩家可以打开搭路练习菜单。");
+                return true;
+            }
+            this.menuSubsystem.openMain(player);
+            return true;
+        });
+        this.getCommand("warpbridge").setExecutor((sender, command, label, args) -> {
+            if (!(sender instanceof Player player)) {
+                NetworkMessages.send(sender, "&c仅玩家可以打开快捷传送菜单。");
+                return true;
+            }
+            this.menuSubsystem.openWarp(player);
+            return true;
+        });
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            this.menuEntryService.ensure(player);
+        }
         BridgingAnalyzer.spawnVillager();
         Bukkit.getScheduler().runTaskTimer((Plugin)this, () -> {
             if (Bukkit.getOnlinePlayers().isEmpty()) {

@@ -5,6 +5,7 @@ author: SakuraKooi
 # 1.21.11 移植版。必须声明 api-version,否则 Paper 会按 legacy 模式加载,
 # 把物品/方块走 1.12 之前的旧材质映射。
 api-version: '1.21'
+depend: [Vault]
 commands:
   bridge:
     description: Bridging Analyzer Config
@@ -21,6 +22,14 @@ commands:
   bsaveworld:
     description: save the world
     usage: /bsaveworld
+  cd:
+    description: 打开搭路练习菜单
+    usage: /cd
+    aliases: [bridgemenu]
+  warpbridge:
+    description: 打开搭路快捷传送菜单
+    usage: /warpbridge
+    aliases: [bridgewarp]
 permissions:
   bridginganalyzer.noclear:
     default: op
@@ -28,3 +37,12 @@ permissions:
     default: op
   bridginganalyzer.admin:
     default: op
+  bridginganalyzer.menu.main:
+    description: 打开搭路练习主菜单
+    default: true
+  bridginganalyzer.menu.warp:
+    description: 打开搭路快捷传送菜单
+    default: true
+  bridginganalyzer.menu.item:
+    description: 获得固定在快捷栏第九格的菜单入口
+    default: true

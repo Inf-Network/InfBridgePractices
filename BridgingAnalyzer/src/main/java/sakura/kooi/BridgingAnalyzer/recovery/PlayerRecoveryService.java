@@ -309,12 +309,18 @@ public final class PlayerRecoveryService {
 
     /** Restore exactly one loadout: checkpoint chest when present, otherwise the default kit. */
     public void restorePreferredLoadout(Player player, Counter counter) {
-        PreferredLoadoutRestorer.restore(
-                () -> counter != null && counter.restoreCheckPointLoadout(player),
-                () -> runSafely(player, "恢复默认练习物品",
-                        () -> BridgingAnalyzer.restorePracticeLoadout(player)),
-                ex -> plugin.getLogger().warning("玩家 " + player.getName()
-                        + " 的检查点套装恢复失败,改用默认练习方块: " + ex.getMessage()));
+        try {
+            PreferredLoadoutRestorer.restore(
+                    () -> counter != null && counter.restoreCheckPointLoadout(player),
+                    () -> runSafely(player, "恢复默认练习物品",
+                            () -> BridgingAnalyzer.restorePracticeLoadout(player)),
+                    ex -> plugin.getLogger().warning("玩家 " + player.getName()
+                            + " 的检查点套装恢复失败,改用默认练习方块: " + ex.getMessage()));
+        } finally {
+            // The fixed entry is an inventory invariant, including empty checkpoint
+            // chests and provider failures that leave the previous loadout untouched.
+            BridgingAnalyzer.ensureMenuEntry(player);
+        }
     }
 
     private boolean tryTeleport(Player player, Location target) {

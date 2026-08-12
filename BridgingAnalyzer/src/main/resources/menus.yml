@@ -1,0 +1,97 @@
+# Native replacement for the audited DeluxeMenus main.yml and warp.yml.
+# Commands are intentionally dispatched through injected adapters; this file is never
+# allowed to grant operator privileges or execute arbitrary menu-script syntax.
+permissions:
+  main: bridginganalyzer.menu.main
+  warp: bridginganalyzer.menu.warp
+  item: bridginganalyzer.menu.item
+
+warp:
+  title: '&a&l快捷传送'
+  # Slots 4 and 49 are reserved for the profile and return buttons. Any other
+  # slot in this 54-slot inventory may be used for future destinations.
+  entries:
+    spawn:
+      slot: 11
+      material: BEACON
+      display-name: '&6主城'
+      cost: 0
+      lore:
+        - '&8地标'
+        - ''
+        - '&e点击传送!'
+      action:
+        type: player-command
+        command: spawn
+    ceda:
+      slot: 12
+      material: SANDSTONE
+      display-name: '&a侧搭/无限搭路区'
+      cost: 100
+      action:
+        type: console-command
+        command: 'warp ceda {player}'
+    qiangda:
+      slot: 13
+      material: LIGHT_BLUE_TERRACOTTA
+      display-name: '&a墙搭'
+      cost: 100
+      action:
+        type: console-command
+        command: 'warp qiangda {player}'
+    susheng:
+      slot: 14
+      material: MELON
+      display-name: '&a速升/自救区'
+      cost: 100
+      action:
+        type: console-command
+        command: 'warp susheng {player}'
+    sujiang:
+      slot: 15
+      material: SPRUCE_LOG
+      display-name: '&a速降/极限跳区'
+      cost: 100
+      action:
+        type: console-command
+        command: 'warp sujiang {player}'
+    tnt:
+      slot: 20
+      material: TNT
+      display-name: '&aTNT跳'
+      cost: 100
+      action:
+        type: console-command
+        command: 'warp TNT {player}'
+    youxian:
+      slot: 21
+      material: RED_SANDSTONE
+      display-name: '&a有限搭路区'
+      cost: 100
+      action:
+        type: console-command
+        command: 'warp youxian {player}'
+    jiangluozijiu:
+      slot: 22
+      material: WATER_BUCKET
+      display-name: '&a降落自救区'
+      cost: 100
+      action:
+        type: console-command
+        command: 'warp jiangluozijiu {player}'
+    jituixunlian:
+      slot: 23
+      material: STICK
+      display-name: '&a击退训练区'
+      cost: 100
+      action:
+        type: console-command
+        command: 'warp jituixunlian {player}'
+    zhanqiao:
+      slot: 24
+      material: DIAMOND_PICKAXE
+      display-name: '&a战桥'
+      cost: 100
+      action:
+        type: console-command
+        command: 'warp zhanqiao {player}'

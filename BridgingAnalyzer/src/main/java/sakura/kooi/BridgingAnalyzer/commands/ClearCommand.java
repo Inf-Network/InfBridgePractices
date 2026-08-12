@@ -14,15 +14,12 @@
 package sakura.kooi.BridgingAnalyzer.commands;
 
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import sakura.kooi.BridgingAnalyzer.BridgingAnalyzer;
-import sakura.kooi.BridgingAnalyzer.Counter;
 import sakura.kooi.BridgingAnalyzer.utils.NetworkMessages;
 
 public class ClearCommand
@@ -31,13 +28,11 @@ implements CommandExecutor {
         if (sender.hasPermission("bridginganalyzer.clear")) {
             if (args.length == 0) {
                 NetworkMessages.send(sender, "&c\u6b63\u5728\u6e05\u9664\u6240\u6709\u5df2\u653e\u7f6e\u65b9\u5757....");
-                for (Counter c : BridgingAnalyzer.getCounterSessions()) {
-                    c.instantBreakBlock();
+                if (BridgingAnalyzer.clearAllPracticeBlocks()) {
+                    NetworkMessages.send(sender, "&a\u65b9\u5757\u6e05\u9664\u5b8c\u6bd5.");
+                } else {
+                    NetworkMessages.send(sender, "&c\u90e8\u5206\u65b9\u5757\u6e05\u9664\u5931\u8d25,\u8bf7\u67e5\u770b\u63a7\u5236\u53f0\u65e5\u5fd7.");
                 }
-                for (Block b : Counter.scheduledBreakBlocks) {
-                    b.setType(Material.AIR);
-                }
-                NetworkMessages.send(sender, "&a\u65b9\u5757\u6e05\u9664\u5b8c\u6bd5.");
             } else {
                 String player = args[0];
                 OfflinePlayer offp = Bukkit.getOfflinePlayer((String)player);

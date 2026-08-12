@@ -19,10 +19,14 @@
  */
 package sakura.kooi.BridgingAnalyzer;
 
+import java.util.Objects;
+import java.util.UUID;
+import java.util.function.Predicate;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -39,6 +43,17 @@ import sakura.kooi.BridgingAnalyzer.utils.TitleUtils;
 
 public class CounterListener
 implements Listener {
+    private final Predicate<ItemStack> menuItemMatcher;
+
+    /** Compatibility constructor for extensions that instantiate the original listener. */
+    public CounterListener() {
+        this(item -> false);
+    }
+
+    public CounterListener(Predicate<ItemStack> menuItemMatcher) {
+        this.menuItemMatcher = Objects.requireNonNull(menuItemMatcher, "menuItemMatcher");
+    }
+
     @EventHandler
     public void onBreakBlock(BlockBreakEvent e) {
         if (e.getPlayer() != null && !BridgingAnalyzer.isPlacedByPlayer(e.getBlock())) {
@@ -51,6 +66,9 @@ implements Listener {
 
     @EventHandler
     public void onClick(PlayerInteractEvent e) {
+        if (this.menuItemMatcher.test(e.getItem())) {
+            return;
+        }
         if (e.getAction().toString().contains("CLICK")) {
             if (e.getAction() == Action.LEFT_CLICK_BLOCK && e.isCancelled()) {
                 return;
@@ -69,11 +87,8 @@ implements Listener {
         e.setCancelled(true);
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlaceBlock(BlockPlaceEvent e) {
-        if (e.isCancelled()) {
-            return;
-        }
         if (e.getPlayer() != null) {
             if (e.getPlayer().getGameMode() == GameMode.CREATIVE) {
                 return;
@@ -83,7 +98,17 @@ implements Listener {
             if (c.isSpeedCountEnabled()) {
                 TitleUtils.sendTitle(e.getPlayer(), "", "\u00a7b" + c.getBridgeSpeed() + " block/s", 1, 40, 1);
             }
-            Bukkit.getScheduler().runTaskLater((Plugin)BridgingAnalyzer.getInstance(), () -> e.getPlayer().getInventory().addItem(new ItemStack[]{new ItemStack(e.getPlayer().getInventory().getItemInMainHand().getType(), 1)}), 1L);
+            // Snapshot only the placed material. Copying a complete BlockStateMeta
+            // item here would duplicate shulker/beehive contents; reading the hand one
+            // tick later would instead mint whichever hotbar item was selected next.
+            Material placedMaterial = e.getBlockPlaced().getType();
+            UUID playerId = e.getPlayer().getUniqueId();
+            Bukkit.getScheduler().runTaskLater((Plugin)BridgingAnalyzer.getInstance(), () -> {
+                org.bukkit.entity.Player current = Bukkit.getPlayer(playerId);
+                if (current != null && current.isOnline()) {
+                    current.getInventory().addItem(new ItemStack(placedMaterial, 1));
+                }
+            }, 1L);
         }
     }
 
