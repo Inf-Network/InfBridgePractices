@@ -6,7 +6,7 @@
 
 上游 **[SakuraKoi/CPSCounter](https://github.com/SakuraKoi/CPSCounter)**,原作者
 **SakuraKooi**。本目录是 v3 的 1.21.11 移植版,源码取自对部署 jar 的
-CFR 0.152 反编译。包名保留 `sakura.kooi` 以尊重出处。
+CFR 0.152 反编译。保留原作者署名与出处说明。
 
 ## 相对原版的改动
 

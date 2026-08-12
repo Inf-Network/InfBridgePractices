@@ -1,4 +1,4 @@
-group = "sakura.kooi"
+group = "net.infnetwork.snowball"
 version = "28-1.21.11"
 
 dependencies {

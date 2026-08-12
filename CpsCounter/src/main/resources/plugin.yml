@@ -1,5 +1,5 @@
 name: CpsCounter
-main: sakura.kooi.CpsCounter.CpsCounter
+main: net.infnetwork.snowball.cpscounter.CpsCounter
 version: ${project.version}
 author: SakuraKooi
 # 1.21.11 移植版。必须声明 api-version,否则 Paper 按 legacy 模式加载。

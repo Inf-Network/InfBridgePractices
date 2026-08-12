@@ -1,6 +1,6 @@
 name: BlockLv
 version: ${project.version}
-main: com.luanmenglei.lv.BlockLv
+main: net.infnetwork.snowball.blocklv.BlockLv
 author: luanmenglei
 # 1.21.11 移植版。必须声明 api-version,否则 Paper 按 legacy 模式加载。
 api-version: '1.21'

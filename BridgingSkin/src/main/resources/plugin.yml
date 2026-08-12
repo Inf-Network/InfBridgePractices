@@ -1,5 +1,5 @@
 name: BridgingSkin
-main: sakura.kooi.BridgingSkin.BridgingSkin
+main: net.infnetwork.snowball.bridgingskin.BridgingSkin
 version: ${project.version}
 author: SakuraKooi
 api-version: '1.21'

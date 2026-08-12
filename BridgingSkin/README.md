@@ -69,4 +69,4 @@ gradle :BridgingSkin:build
 PostgreSQL。
 
 上游为 [SakuraKoi/BridgingSkin](https://github.com/SakuraKoi/BridgingSkin)，包名保留
-`sakura.kooi`。本目录是在其 v3 反编译移植基础上的 v4 模块化实现。
+本目录是在原作者 v3 反编译移植基础上的 v4 模块化实现。

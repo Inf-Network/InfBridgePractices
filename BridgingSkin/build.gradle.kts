@@ -1,4 +1,4 @@
-group = "sakura.kooi"
+group = "net.infnetwork.snowball"
 version = "4-1.21.11"
 
 repositories {

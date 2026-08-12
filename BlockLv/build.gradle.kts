@@ -1,4 +1,4 @@
-group = "com.luanmenglei"
+group = "net.infnetwork.snowball"
 version = "1.0-1.21.11"
 
 dependencies {
