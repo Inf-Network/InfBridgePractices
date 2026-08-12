@@ -1,10 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.block.Block
- *  org.bukkit.entity.Player
- */
 package net.infnetwork.snowball.bridginganalyzer.api;
 
 import org.bukkit.block.Block;

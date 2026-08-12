@@ -1,11 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.Bukkit
- *  org.bukkit.entity.Player
- *  org.bukkit.plugin.Plugin
- */
 package net.infnetwork.snowball.cpscounter;
 
 import java.util.ArrayList;
@@ -127,4 +119,3 @@ public class Counter {
         }, 7L);
     }
 }
-

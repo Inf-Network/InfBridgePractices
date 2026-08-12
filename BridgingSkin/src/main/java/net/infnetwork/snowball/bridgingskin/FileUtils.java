@@ -1,6 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package net.infnetwork.snowball.bridgingskin;
 
 import java.io.ByteArrayOutputStream;
@@ -52,4 +49,3 @@ public class FileUtils {
         FileUtils.writeFile(configFile, FileUtils.readFile(stream));
     }
 }
-

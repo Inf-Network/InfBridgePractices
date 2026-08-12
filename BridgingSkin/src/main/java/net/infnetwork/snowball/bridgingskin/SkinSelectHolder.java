@@ -6,7 +6,6 @@ import org.bukkit.Material;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 
-/** Immutable identity and slot routing for one page of the player skin menu. */
 public final class SkinSelectHolder implements InventoryHolder {
     public static final int CONTENT_SIZE = 45;
     public static final int PREVIOUS_SLOT = 45;

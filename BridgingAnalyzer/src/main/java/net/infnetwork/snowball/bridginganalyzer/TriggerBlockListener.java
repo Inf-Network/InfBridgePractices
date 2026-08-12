@@ -1,25 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.Bukkit
- *  org.bukkit.GameMode
- *  org.bukkit.Location
- *  org.bukkit.Material
- *  org.bukkit.Sound
- *  org.bukkit.block.Block
- *  org.bukkit.block.BlockFace
- *  org.bukkit.entity.Player
- *  org.bukkit.event.EventHandler
- *  org.bukkit.event.Listener
- *  org.bukkit.event.block.BlockPlaceEvent
- *  org.bukkit.event.player.PlayerMoveEvent
- *  org.bukkit.event.player.PlayerToggleSneakEvent
- *  org.bukkit.plugin.Plugin
- *  org.bukkit.potion.PotionEffect
- *  org.bukkit.potion.PotionEffectType
- *  org.bukkit.util.Vector
- */
 package net.infnetwork.snowball.bridginganalyzer;
 
 import org.bukkit.Bukkit;
@@ -30,6 +8,7 @@ import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
@@ -39,27 +18,94 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import net.infnetwork.snowball.bridginganalyzer.BridgingAnalyzer;
 import net.infnetwork.snowball.bridginganalyzer.Counter;
+import net.infnetwork.snowball.bridginganalyzer.block.PlacementLedger;
+import net.infnetwork.snowball.bridginganalyzer.block.PracticeBlockRegistry;
 import net.infnetwork.snowball.bridginganalyzer.utils.FireworkUtils;
 import org.bukkit.Particle;
 import net.infnetwork.snowball.bridginganalyzer.utils.ParticleRing;
 import net.infnetwork.snowball.bridginganalyzer.utils.TeleportRingEffect;
 import net.infnetwork.snowball.bridginganalyzer.utils.TitleUtils;
-import net.infnetwork.snowball.bridginganalyzer.utils.Utils;
 
 public class TriggerBlockListener
 implements Listener {
-    @EventHandler
+    private static final int MAX_TRIGGER_CLEANUP_RETRIES = 5;
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void antiTriggerBlockCover(BlockPlaceEvent e) {
         if (e.getPlayer() != null) {
             if (e.getPlayer().getGameMode() == GameMode.CREATIVE) {
                 return;
             }
             if (this.isTriggerBlock(e.getBlock().getRelative(BlockFace.DOWN)) || this.isTriggerBlock(e.getBlock().getRelative(BlockFace.DOWN, 2))) {
-                Bukkit.getScheduler().runTaskLater((Plugin)BridgingAnalyzer.getInstance(), () -> {
-                    Utils.breakBlock(e.getBlock());
-                    BridgingAnalyzer.getCounter(e.getPlayer()).removeBlockRecord(e.getBlock());
-                }, 100L);
+                PracticeBlockRegistry registry = BridgingAnalyzer.practiceBlocks();
+                if (registry == null) {
+                    return;
+                }
+                Block block = e.getBlock();
+                java.util.UUID ownerId = e.getPlayer().getUniqueId();
+                PlacementLedger.Entry<PracticeBlockRegistry.BlockKey, java.util.UUID, Material> placement =
+                        registry.snapshot(ownerId).stream()
+                                .filter(entry -> entry.key().equals(
+                                        PracticeBlockRegistry.BlockKey.of(block)))
+                                .findFirst()
+                                .orElse(null);
+                if (placement == null) {
+                    // CounterListener is registered before this listener at MONITOR.
+                    // If another extension changes that ordering, leaving the block for
+                    // normal attempt cleanup is safer than scheduling a raw location delete.
+                    return;
+                }
+                this.scheduleTriggerCleanup(registry, placement,
+                        BridgingAnalyzer.getCounter(e.getPlayer()), 100L, 0);
             }
+        }
+    }
+
+    private void scheduleTriggerCleanup(
+            PracticeBlockRegistry registry,
+            PlacementLedger.Entry<PracticeBlockRegistry.BlockKey, java.util.UUID, Material> placement,
+            Counter counter,
+            long delay,
+            int retryCount) {
+        BridgingAnalyzer plugin = BridgingAnalyzer.getInstance();
+        if (plugin == null || !plugin.isEnabled() || BridgingAnalyzer.isShuttingDown()) {
+            return;
+        }
+        try {
+            Bukkit.getScheduler().runTaskLater((Plugin)plugin, () -> {
+                // A reload creates a new registry. Never let a task holding an old token
+                // mutate the new runtime, even though Bukkit normally cancels such tasks.
+                if (BridgingAnalyzer.practiceBlocks() != registry) {
+                    return;
+                }
+                PracticeBlockRegistry.DeleteResult result;
+                try {
+                    result = registry.delete(placement);
+                } catch (RuntimeException exception) {
+                    plugin.getLogger().warning("触发方块上方的练习方块清理失败，将重试: "
+                            + exception.getMessage());
+                    result = PracticeBlockRegistry.DeleteResult.RETRY;
+                }
+                if (result == PracticeBlockRegistry.DeleteResult.RETRY) {
+                    if (retryCount < MAX_TRIGGER_CLEANUP_RETRIES) {
+                        long retryDelay = Math.min(80L, 5L << retryCount);
+                        this.scheduleTriggerCleanup(
+                                registry, placement, counter, retryDelay, retryCount + 1);
+                    }
+                    return;
+                }
+                if (result != PracticeBlockRegistry.DeleteResult.STALE) {
+                    // STALE can mean a newer generation now occupies the same location;
+                    // removing by Block equality in that case would erase its local mirror.
+                    Block block = placement.key().resolve();
+                    if (block != null) {
+                        counter.removeBlockRecordLocally(block);
+                    }
+                }
+            }, delay);
+        } catch (RuntimeException exception) {
+            plugin.getLogger().warning("无法排队触发方块上方的练习方块清理: "
+                    + exception.getMessage());
         }
     }
 
@@ -253,25 +299,13 @@ implements Listener {
         }
     }
 
-    /**
-     * 判断方块能否被信标传送穿透。
-     *
-     * 1.8 时代这里是三个常量的直接比较(AIR / STAINED_GLASS_PANE / WALL_SIGN /
-     * SIGN_POST)。1.13 扁平化后玻璃板拆成 16 色、告示牌按木种与朝向拆成几十种,
-     * 只能改成按类型族判断。
-     *
-     * @param type 待判断的方块类型
-     * @return 可穿透返回 true
-     */
     private static boolean isPassThrough(org.bukkit.Material type) {
         if (type == org.bukkit.Material.AIR) {
             return true;
         }
-        // 覆盖 16 色染色玻璃板与无色玻璃板
         if (type.name().endsWith("GLASS_PANE")) {
             return true;
         }
-        // Tag.ALL_SIGNS 同时涵盖立式、墙上与悬挂告示牌的全部木种
         return org.bukkit.Tag.ALL_SIGNS.isTagged(type);
     }
 }

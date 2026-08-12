@@ -85,8 +85,6 @@ public final class SkinService {
         UUID uuid = UUID.fromString(candidate.uuid);
         String fingerprint = fingerprint(candidate);
         if (fingerprint.equals(persistedFingerprints.get(uuid))) {
-            // An external caller may pass another object with identical data. Keep the
-            // authoritative cache stable and avoid a needless database round trip.
             return;
         }
         PlayerSkin persisted = repository.save(candidate);

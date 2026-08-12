@@ -1,13 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.Effect
- *  org.bukkit.Material
- *  org.bukkit.block.Block
- *  org.bukkit.inventory.ItemStack
- *  org.bukkit.inventory.PlayerInventory
- */
 package net.infnetwork.snowball.bridginganalyzer.utils;
 
 import org.bukkit.Effect;

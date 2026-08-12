@@ -13,7 +13,6 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.plugin.Plugin;
 
-/** Makes every direct player hit lethal to a marked practice target. */
 public final class PracticeTargetListener implements Listener {
     private static final double MINIMUM_LETHAL_DAMAGE = 2.0;
 

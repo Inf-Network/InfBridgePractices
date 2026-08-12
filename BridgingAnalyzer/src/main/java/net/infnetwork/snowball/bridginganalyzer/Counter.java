@@ -1,18 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.Bukkit
- *  org.bukkit.Location
- *  org.bukkit.Material
- *  org.bukkit.block.Block
- *  org.bukkit.block.BlockFace
- *  org.bukkit.block.Chest
- *  org.bukkit.entity.Player
- *  org.bukkit.inventory.ItemStack
- *  org.bukkit.plugin.Plugin
- *  org.bukkit.scheduler.BukkitTask
- */
 package net.infnetwork.snowball.bridginganalyzer;
 
 import java.util.ArrayList;
@@ -30,10 +15,14 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 import net.infnetwork.snowball.bridginganalyzer.BridgingAnalyzer;
+import net.infnetwork.snowball.bridginganalyzer.block.PlacementLedger;
+import net.infnetwork.snowball.bridginganalyzer.block.PracticeBlockRegistry;
 import net.infnetwork.snowball.bridginganalyzer.utils.Utils;
 
 public class Counter {
     public static HashSet<Block> scheduledBreakBlocks = new HashSet();
+    private static final int MAX_BREAK_RETRIES = 8;
+    private static final long MAX_BREAK_RETRY_DELAY_TICKS = 100L;
     private ArrayList<Long> counterCPS = new ArrayList();
     private int maxCPS = 0;
     private ArrayList<Long> counterBridge = new ArrayList();
@@ -50,7 +39,10 @@ public class Counter {
     private final UUID ownerId;
 
     public Counter() {
-        this.ownerId = null;
+        // Preserve the public constructor without falling back to raw Block cleanup.
+        // A synthetic owner still receives generation tokens, so a delayed legacy
+        // cleanup cannot delete a creative replacement at the same coordinates.
+        this(UUID.randomUUID());
     }
 
     public Counter(UUID ownerId) {
@@ -67,19 +59,16 @@ public class Counter {
     }
 
     public void addLogBlock(Block block) {
-        this.allBlock.add(block);
-        BridgingAnalyzer.getPlacedBlocks().put(block, block.getState().getData());
+        this.recordBlock(block);
     }
 
     public void breakBlock() {
-        scheduledBreakBlocks.addAll(this.allBlock);
         new BreakRunnable(new ArrayList<Block>(this.allBlock));
         this.allBlock.clear();
     }
 
     public void countBridge(Block block) {
-        this.allBlock.add(block);
-        BridgingAnalyzer.getPlacedBlocks().put(block, block.getState().getData());
+        this.recordBlock(block);
         if (this.lastBlock != null && this.lastBlock.getY() + 1 != block.getY()) {
             this.counterBridge.add(System.currentTimeMillis());
             ++this.currentLength;
@@ -143,16 +132,39 @@ public class Counter {
     }
 
     public void instantBreakBlock() {
-        for (Block b : this.allBlock) {
-            Utils.breakBlock(b);
-            BridgingAnalyzer.getPlacedBlocks().remove(b);
+        PracticeBlockRegistry registry = BridgingAnalyzer.practiceBlocks();
+        if (this.ownerId != null && registry != null) {
+            int retries = registry.cleanupNow(this.ownerId);
+            BridgingAnalyzer plugin = BridgingAnalyzer.getInstance();
+            if (retries > 0 && plugin != null && plugin.isEnabled()
+                    && !BridgingAnalyzer.isShuttingDown()) {
+                // Keep retrying on the main thread. The generation tokens ensure this
+                // task can never delete a newer creative/player replacement.
+                new BreakRunnable(new ArrayList<Block>(this.allBlock));
+            }
+            this.allBlock.clear();
+            return;
         }
-        this.allBlock.clear();
+
+        for (Block b : new ArrayList<>(this.allBlock)) {
+            try {
+                Utils.breakBlock(b);
+                this.allBlock.remove(b);
+                BridgingAnalyzer.getPlacedBlocks().remove(b);
+            } catch (RuntimeException exception) {
+                BridgingAnalyzer.getInstance().getLogger().warning(
+                        "清理旧版练习方块失败，将保留记录: " + exception.getMessage());
+            }
+        }
     }
 
     public void removeBlockRecord(Block b) {
-        this.allBlock.remove(b);
-        BridgingAnalyzer.getPlacedBlocks().remove(b);
+        BridgingAnalyzer.forgetPracticeBlock(b);
+    }
+
+    /** Internal compatibility-list cleanup; the generation ledger remains authoritative. */
+    void removeBlockRecordLocally(Block block) {
+        this.allBlock.removeIf(block::equals);
     }
 
     private void removeBridgeTimeout() {
@@ -173,7 +185,19 @@ public class Counter {
         this.counterBridge.clear();
         this.maxBridge = 0.0;
         this.currentLength = 0;
+        this.lastBlock = null;
         this.breakBlock();
+    }
+
+    /** A real death has no victory animation, so remove the owner's blocks immediately. */
+    public void resetImmediately() {
+        this.counterCPS.clear();
+        this.maxCPS = 0;
+        this.counterBridge.clear();
+        this.maxBridge = 0.0;
+        this.currentLength = 0;
+        this.lastBlock = null;
+        this.instantBreakBlock();
     }
 
     public void resetMax() {
@@ -186,9 +210,7 @@ public class Counter {
     }
 
     public void setCheckPoint(Location loc, Player player) {
-        // 必须 clone。Location#add 是就地修改的,原版直接拿传进来的 loc 去 add(0,-1,0)
-        // 找脚下的箱子,结果把刚存好的 checkPoint 一起改低了一格 ——
-        // 之后每次回检查点都会落到绿宝石块自己所在的那一格里。
+        // Location#add mutates its receiver, so the stored checkpoint must be detached.
         this.checkPoint = loc.clone();
         // 箱子是显式检查点套装（包括空箱子）；没有箱子时必须立刻恢复
         // 出生时的默认练习方块，不能把玩家踩绿宝石前的物品原样留下。
@@ -254,7 +276,6 @@ public class Counter {
     }
 
     private Block getCheckPointLoadoutBlock() {
-        // Keep this identical to the lookup used when the emerald checkpoint is set.
         return checkPointLoadoutBase(this.checkPoint)
                 .getBlock().getRelative(BlockFace.DOWN, 3);
     }
@@ -273,15 +294,25 @@ public class Counter {
     }
 
     public void vectoryBreakBlock(Player player) {
-        prepareVictoryBlocks();
-        BridgingAnalyzer.teleportCheckPoint(player);
-        this.breakBlock();
+        try {
+            prepareVictoryBlocks();
+            BridgingAnalyzer.teleportCheckPoint(player);
+        } finally {
+            // Victory rendering, inventory and teleport providers must never be able
+            // to prevent cleanup.
+            this.breakBlock();
+        }
     }
 
     private void prepareVictoryBlocks() {
         this.counterCPS.clear();
         this.counterBridge.clear();
         this.currentLength = 0;
+        PracticeBlockRegistry registry = BridgingAnalyzer.practiceBlocks();
+        if (this.ownerId != null && registry != null) {
+            registry.prepareVictory(this.ownerId);
+            return;
+        }
         for (Block b : this.allBlock) {
             if (b.getType() == Material.AIR) continue;
             b.setType(Material.SEA_LANTERN);
@@ -292,15 +323,27 @@ public class Counter {
     @Deprecated
     public void vectoryBreakBlock() {
         Player player = currentPlayer();
-        prepareVictoryBlocks();
-        if (player != null) {
-            BridgingAnalyzer.teleportCheckPoint(player);
+        try {
+            prepareVictoryBlocks();
+            if (player != null) {
+                BridgingAnalyzer.teleportCheckPoint(player);
+            }
+        } finally {
+            this.breakBlock();
         }
-        this.breakBlock();
     }
 
     private Player currentPlayer() {
         return this.ownerId == null ? null : Bukkit.getPlayer(this.ownerId);
+    }
+
+    private void recordBlock(Block block) {
+        if (this.ownerId != null && BridgingAnalyzer.practiceBlocks() != null) {
+            BridgingAnalyzer.trackPracticeBlock(this.ownerId, block);
+        } else {
+            BridgingAnalyzer.getPlacedBlocks().put(block, block.getState().getData());
+        }
+        this.allBlock.add(block);
     }
 
     public boolean isSpeedCountEnabled() {
@@ -339,36 +382,162 @@ public class Counter {
     implements Runnable {
         BukkitTask task;
         ArrayList<Block> blocks = new ArrayList();
+        ArrayList<PlacementLedger.Entry<PracticeBlockRegistry.BlockKey, UUID, Material>> placements =
+                new ArrayList<>();
+        private final long normalDelayTicks;
+        private int retryCount;
+        private boolean stopped;
 
         public BreakRunnable(ArrayList<Block> allBlocks) {
-            this.blocks.addAll(allBlocks);
-            scheduledBreakBlocks.addAll(this.blocks);
-            if (this.blocks.isEmpty()) {
+            PracticeBlockRegistry registry = BridgingAnalyzer.practiceBlocks();
+            if (ownerId != null && registry != null) {
+                this.placements.addAll(registry.snapshot(ownerId));
+                for (PlacementLedger.Entry<PracticeBlockRegistry.BlockKey, UUID, Material> entry
+                        : this.placements) {
+                    Block block = entry.key().resolve();
+                    if (block != null) {
+                        scheduledBreakBlocks.add(block);
+                    }
+                }
+            } else {
+                this.blocks.addAll(allBlocks);
+                scheduledBreakBlocks.addAll(this.blocks);
+            }
+            int size = this.placements.isEmpty() ? this.blocks.size() : this.placements.size();
+            if (size == 0) {
+                this.normalDelayTicks = 1L;
                 return;
             }
-            int tick = 1 + 60 / this.blocks.size();
+            int tick = 1 + 60 / size;
             if (tick > 3) {
                 tick = 3;
             }
-            this.task = Bukkit.getScheduler().runTaskTimer((Plugin)BridgingAnalyzer.getInstance(), (Runnable)this, 10L, (long)tick);
+            this.normalDelayTicks = tick;
+            this.scheduleNext(10L);
         }
 
         @Override
         public void run() {
-            if (!this.blocks.isEmpty()) {
-                Block b = null;
-                while (!(this.blocks.isEmpty() || b != null && b.getType() != Material.AIR)) {
-                    b = this.blocks.get(0);
-                    scheduledBreakBlocks.remove(b);
+            this.task = null;
+            if (this.stopped) {
+                return;
+            }
+            PracticeBlockRegistry registry = BridgingAnalyzer.practiceBlocks();
+            if (!this.placements.isEmpty()) {
+                if (registry == null) {
+                    this.stop();
+                    return;
+                }
+                while (!this.placements.isEmpty()) {
+                    PlacementLedger.Entry<PracticeBlockRegistry.BlockKey, UUID, Material> entry =
+                            this.placements.get(0);
+                    PracticeBlockRegistry.DeleteResult result;
+                    try {
+                        result = registry.delete(entry);
+                    } catch (RuntimeException exception) {
+                        BridgingAnalyzer.getInstance().getLogger().warning(
+                                "清理练习方块失败，将重试: " + exception.getMessage());
+                        result = PracticeBlockRegistry.DeleteResult.RETRY;
+                    }
+                    if (result == PracticeBlockRegistry.DeleteResult.RETRY) {
+                        this.placements.remove(0);
+                        this.placements.add(entry);
+                        this.retryOrStop("练习方块 " + entry.key());
+                        return;
+                    }
+                    this.placements.remove(0);
+                    this.retryCount = 0;
+                    if (result == PracticeBlockRegistry.DeleteResult.DELETED) {
+                        this.scheduleNext(this.normalDelayTicks);
+                        return;
+                    }
+                }
+                this.stop();
+                return;
+            }
+
+            while (!this.blocks.isEmpty()) {
+                Block block = this.blocks.get(0);
+                Material blockType;
+                try {
+                    blockType = block.getType();
+                } catch (RuntimeException exception) {
                     this.blocks.remove(0);
-                    BridgingAnalyzer.getPlacedBlocks().remove(b);
+                    this.blocks.add(block);
+                    BridgingAnalyzer.getInstance().getLogger().warning(
+                            "读取旧版练习方块失败，将重试: " + exception.getMessage());
+                    this.retryOrStop("旧版练习方块");
+                    return;
                 }
-                if (b != null) {
-                    Utils.breakBlock(b);
-                    BridgingAnalyzer.getPlacedBlocks().remove(b);
+                if (blockType == Material.AIR) {
+                    this.blocks.remove(0);
+                    scheduledBreakBlocks.remove(block);
+                    BridgingAnalyzer.getPlacedBlocks().remove(block);
+                    continue;
                 }
-            } else {
-                this.task.cancel();
+                try {
+                    Utils.breakBlock(block);
+                } catch (RuntimeException exception) {
+                    // Delete first, retire tracking second. Rotate the failed block so
+                    // later blocks still make progress on subsequent task runs.
+                    this.blocks.remove(0);
+                    this.blocks.add(block);
+                    BridgingAnalyzer.getInstance().getLogger().warning(
+                            "清理旧版练习方块失败，将重试: " + exception.getMessage());
+                    this.retryOrStop("旧版练习方块 " + block.getLocation());
+                    return;
+                }
+                this.blocks.remove(0);
+                scheduledBreakBlocks.remove(block);
+                BridgingAnalyzer.getPlacedBlocks().remove(block);
+                this.retryCount = 0;
+                this.scheduleNext(this.normalDelayTicks);
+                return;
+            }
+            this.stop();
+        }
+
+        private void retryOrStop(String description) {
+            ++this.retryCount;
+            if (this.retryCount > MAX_BREAK_RETRIES) {
+                BridgingAnalyzer plugin = BridgingAnalyzer.getInstance();
+                if (plugin != null) {
+                    plugin.getLogger().warning(description + " 连续清理失败，已停止本轮重试；"
+                            + "记录会保留到下次重置或全局清理");
+                }
+                this.stop();
+                return;
+            }
+            long multiplier = 1L << Math.min(this.retryCount - 1, 6);
+            this.scheduleNext(Math.min(
+                    MAX_BREAK_RETRY_DELAY_TICKS, this.normalDelayTicks * multiplier));
+        }
+
+        private void scheduleNext(long delayTicks) {
+            BridgingAnalyzer plugin = BridgingAnalyzer.getInstance();
+            if (this.stopped || plugin == null || !plugin.isEnabled()
+                    || BridgingAnalyzer.isShuttingDown()) {
+                this.stop();
+                return;
+            }
+            try {
+                this.task = Bukkit.getScheduler().runTaskLater(
+                        (Plugin)plugin, (Runnable)this, Math.max(1L, delayTicks));
+            } catch (RuntimeException exception) {
+                plugin.getLogger().warning("无法排队练习方块清理任务: " + exception.getMessage());
+                this.stop();
+            }
+        }
+
+        private void stop() {
+            this.stopped = true;
+            if (this.task != null) {
+                try {
+                    this.task.cancel();
+                } catch (RuntimeException ignored) {
+                    // A completed or server-shutdown task may no longer be cancellable.
+                }
+                this.task = null;
             }
         }
     }

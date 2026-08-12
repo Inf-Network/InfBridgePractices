@@ -1,42 +1,6 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.Bukkit
- *  org.bukkit.GameMode
- *  org.bukkit.Material
- *  org.bukkit.block.Block
- *  org.bukkit.command.CommandExecutor
- *  org.bukkit.entity.ArmorStand
- *  org.bukkit.entity.Entity
- *  org.bukkit.entity.EntityType
- *  org.bukkit.entity.Player
- *  org.bukkit.entity.Projectile
- *  org.bukkit.entity.Villager
- *  org.bukkit.entity.Villager$Profession
- *  org.bukkit.event.EventHandler
- *  org.bukkit.event.Listener
- *  org.bukkit.event.entity.EntityDamageByEntityEvent
- *  org.bukkit.event.entity.EntityDamageEvent
- *  org.bukkit.event.entity.FoodLevelChangeEvent
- *  org.bukkit.event.player.PlayerArmorStandManipulateEvent
- *  org.bukkit.event.player.PlayerDropItemEvent
- *  org.bukkit.event.player.PlayerInteractAtEntityEvent
- *  org.bukkit.event.player.PlayerInteractEntityEvent
- *  org.bukkit.event.player.PlayerJoinEvent
- *  org.bukkit.event.player.PlayerQuitEvent
- *  org.bukkit.event.weather.WeatherChangeEvent
- *  org.bukkit.inventory.ItemStack
- *  org.bukkit.inventory.PlayerInventory
- *  org.bukkit.material.MaterialData
- *  org.bukkit.plugin.Plugin
- *  org.bukkit.plugin.PluginManager
- *  org.bukkit.plugin.java.JavaPlugin
- *  org.bukkit.potion.PotionEffect
- *  org.bukkit.potion.PotionEffectType
- */
 package net.infnetwork.snowball.bridginganalyzer;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -76,6 +40,8 @@ import net.infnetwork.snowball.bridginganalyzer.DefaultBlockSkinProvider;
 import net.infnetwork.snowball.bridginganalyzer.HighlightListener;
 import net.infnetwork.snowball.bridginganalyzer.TriggerBlockListener;
 import net.infnetwork.snowball.bridginganalyzer.api.BlockSkinProvider;
+import net.infnetwork.snowball.bridginganalyzer.block.PracticeBlockRegistry;
+import net.infnetwork.snowball.bridginganalyzer.block.PracticeBlockLifecycleListener;
 import net.infnetwork.snowball.bridginganalyzer.commands.BridgeCommand;
 import net.infnetwork.snowball.bridginganalyzer.commands.ClearCommand;
 import net.infnetwork.snowball.bridginganalyzer.commands.SaveWorldCommand;
@@ -102,6 +68,8 @@ implements Listener {
     private static final PlayerSessionRegistry sessions = new PlayerSessionRegistry();
     private static HashMap<Block, MaterialData> placedBlocks;
     private static BlockSkinProvider blockSkinProvider;
+    private static PracticeBlockRegistry practiceBlockRegistry;
+    private static boolean shuttingDown;
     private PlayerRecoveryService recoveryService;
     private MelonKnockbackController melonKnockbackController;
     private PracticeTargetService practiceTargetService;
@@ -126,14 +94,12 @@ implements Listener {
         ensureMenuEntry(p);
     }
 
-    /** Keep the native menu entry present after every inventory/loadout rebuild. */
     public static void ensureMenuEntry(Player player) {
         if (instance != null && instance.menuEntryService != null) {
             instance.menuEntryService.ensure(player);
         }
     }
 
-    /** Clear every tracked practice block without requiring an operator command. */
     public static boolean clearAllPracticeBlocks() {
         boolean successful = true;
         for (Counter counter : sessions.values()) {
@@ -144,10 +110,17 @@ implements Listener {
                 instance.getLogger().warning("清理玩家搭路方块时失败: " + exception.getMessage());
             }
         }
+        if (practiceBlockRegistry != null && practiceBlockRegistry.cleanupAllNow() > 0) {
+            successful = false;
+        }
         for (Block block : new HashSet<>(Counter.scheduledBreakBlocks)) {
             try {
-                block.setType(Material.AIR);
-                placedBlocks.remove(block);
+                // Compatibility cleanup for blocks recorded through the old public
+                // Counter API. Never delete an untracked replacement at the same spot.
+                if (isPlacedByPlayer(block)) {
+                    block.setType(Material.AIR, false);
+                    forgetPracticeBlock(block);
+                }
                 Counter.scheduledBreakBlocks.remove(block);
             } catch (RuntimeException exception) {
                 successful = false;
@@ -161,20 +134,38 @@ implements Listener {
         return sessions.get(p);
     }
 
+    static void trackPracticeBlock(java.util.UUID ownerId, Block block) {
+        forgetPracticeBlock(block);
+        if (practiceBlockRegistry != null) {
+            practiceBlockRegistry.track(ownerId, block);
+        } else {
+            placedBlocks.put(block, block.getState().getData());
+        }
+    }
+
+    public static void forgetPracticeBlock(Block block) {
+        if (practiceBlockRegistry != null) {
+            practiceBlockRegistry.forget(block);
+        } else {
+            placedBlocks.remove(block);
+        }
+        for (Counter counter : sessions.values()) {
+            counter.removeBlockRecordLocally(block);
+        }
+    }
+
+    static PracticeBlockRegistry practiceBlocks() {
+        return practiceBlockRegistry;
+    }
+
+    static boolean isShuttingDown() {
+        return shuttingDown;
+    }
+
     public static void spawnVillager() {
         instance.practiceTargetService.respawnAll();
     }
 
-    /*
-     * 原版顺序是「清背包 → 发方块 → 回血 → 传送」。传送排在最后,
-     * 意味着前面任何一步抛异常,玩家就永远留在原地 —— 掉进虚空时就是
-     * 反复触发、反复清背包、却始终出不来。
-     *
-     * 发方块这一步现在走的是 BridgingSkin 的 SkinProvider(读玩家皮肤 json),
-     * 比原来的固定砂岩多了几条出错路径,更不该挡在传送前面。
-     *
-     * 改成传送优先:先把人拉回来,再做背包与状态这些收尾。
-     */
     public static void teleportCheckPoint(Player p) {
         instance.recoveryService.recoverNow(p);
     }
@@ -198,7 +189,6 @@ implements Listener {
         return practiceBlocks.clone();
     }
 
-    /** Apply the checkpoint chest when present, or the standard practice block otherwise. */
     static void restorePreferredCheckPointLoadout(Player player, Counter counter) {
         instance.recoveryService.restorePreferredLoadout(player, counter);
     }
@@ -208,6 +198,9 @@ implements Listener {
     }
 
     public static boolean isPlacedByPlayer(Block b) {
+        if (practiceBlockRegistry != null && practiceBlockRegistry.isTracked(b)) {
+            return true;
+        }
         if (BridgingAnalyzer.getPlacedBlocks().containsKey(b)) {
             return BridgingAnalyzer.getPlacedBlocks().get(b).equals((Object)b.getState().getData());
         }
@@ -274,39 +267,92 @@ implements Listener {
     }
 
     public void onDisable() {
-        if (this.menuEntryService != null) {
-            this.menuEntryService.close();
-        }
-        if (this.menuSubsystem != null) {
-            this.menuSubsystem.close();
-        }
-        if (this.menuRuntime != null) {
-            this.menuRuntime.close();
-        }
-        if (this.melonKnockbackController != null) {
-            this.melonKnockbackController.shutdown();
-        }
-        if (this.recoveryService != null) {
-            this.recoveryService.stop();
-        }
+        shuttingDown = true;
+        runDisableStep("关闭菜单入口", () -> {
+            if (this.menuEntryService != null) {
+                this.menuEntryService.close();
+            }
+        });
+        runDisableStep("关闭菜单系统", () -> {
+            if (this.menuSubsystem != null) {
+                this.menuSubsystem.close();
+            }
+        });
+        runDisableStep("关闭菜单运行时", () -> {
+            if (this.menuRuntime != null) {
+                this.menuRuntime.close();
+            }
+        });
+        runDisableStep("停止西瓜击退控制器", () -> {
+            if (this.melonKnockbackController != null) {
+                this.melonKnockbackController.shutdown();
+            }
+        });
+        runDisableStep("停止玩家救援服务", () -> {
+            if (this.recoveryService != null) {
+                this.recoveryService.stop();
+            }
+        });
         Bukkit.getConsoleSender().sendMessage("\u00a7bBridgingAnalyzer \u00a77>> \u00a7c\u6b63\u5728\u6e05\u9664\u6240\u6709\u5df2\u653e\u7f6e\u65b9\u5757....");
-        for (Counter c : sessions.values()) {
-            c.instantBreakBlock();
+        try {
+            for (Counter counter : new ArrayList<>(sessions.values())) {
+                runDisableStep("清理玩家练习方块", counter::instantBreakBlock);
+            }
+            if (practiceBlockRegistry != null) {
+                try {
+                    int retries = practiceBlockRegistry.cleanupAllNow();
+                    if (retries > 0) {
+                        this.getLogger().warning("停服时仍有 " + retries + " 个练习方块无法清理");
+                    }
+                } catch (RuntimeException exception) {
+                    this.getLogger().warning("停服时执行全局练习方块清理失败: "
+                            + exception.getMessage());
+                }
+            }
+            for (Block block : new HashSet<>(Counter.scheduledBreakBlocks)) {
+                try {
+                    if (isPlacedByPlayer(block)) {
+                        block.setType(Material.AIR, false);
+                        forgetPracticeBlock(block);
+                    }
+                } catch (RuntimeException exception) {
+                    this.getLogger().warning("停服时清理延迟方块失败: " + exception.getMessage());
+                }
+            }
+        } catch (RuntimeException exception) {
+            // A malformed external compatibility collection must not prevent the
+            // in-memory registries from being released during plugin disable.
+            this.getLogger().warning("停服清理发生未预期异常: " + exception.getMessage());
+        } finally {
+            sessions.clear();
+            Counter.scheduledBreakBlocks.clear();
+            placedBlocks.clear();
+            if (practiceBlockRegistry != null) {
+                try {
+                    practiceBlockRegistry.clearTracking();
+                } catch (RuntimeException exception) {
+                    this.getLogger().warning("释放练习方块追踪器失败: " + exception.getMessage());
+                } finally {
+                    practiceBlockRegistry = null;
+                }
+            }
+            Bukkit.getConsoleSender().sendMessage("\u00a7bBridgingAnalyzer \u00a77>> \u00a7a\u65b9\u5757\u6e05\u9664\u5b8c\u6bd5.");
         }
-        sessions.clear();
-        for (Block b : Counter.scheduledBreakBlocks) {
-            b.setType(Material.AIR);
+    }
+
+    private void runDisableStep(String description, Runnable action) {
+        try {
+            action.run();
+        } catch (RuntimeException exception) {
+            this.getLogger().warning(description + "失败: " + exception.getMessage());
         }
-        Counter.scheduledBreakBlocks.clear();
-        Bukkit.getConsoleSender().sendMessage("\u00a7bBridgingAnalyzer \u00a77>> \u00a7a\u65b9\u5757\u6e05\u9664\u5b8c\u6bd5.");
     }
 
     public void onEnable() {
         instance = this;
-        // 移植时移除了 bStats 统计(原 utils/Metrics.java)。
-        // 它依赖 org.json.simple —— 该库在 Spigot 1.8 内置、现代服务端已移除;
-        // 而这只是给上游作者看的匿名用量统计,对玩法零贡献,Paper 自身也已内置 bStats。
+        shuttingDown = false;
         blockSkinProvider = new DefaultBlockSkinProvider();
+        practiceBlockRegistry = new PracticeBlockRegistry(this);
         this.menuRuntime = new BukkitMenuRuntime(
                 this, player -> BridgingAnalyzer.clearAllPracticeBlocks());
         this.menuSubsystem = MenuSubsystem.load(this, this.menuRuntime.dependencies());
@@ -321,6 +367,7 @@ implements Listener {
         pluginManager.registerEvents((Listener)this.menuSubsystem, (Plugin)this);
         pluginManager.registerEvents((Listener)this.menuEntryService, (Plugin)this);
         pluginManager.registerEvents((Listener)new CounterListener(this.menuEntryService::isMenuItem), (Plugin)this);
+        pluginManager.registerEvents((Listener)new PracticeBlockLifecycleListener(practiceBlockRegistry), (Plugin)this);
         pluginManager.registerEvents((Listener)new HighlightListener(), (Plugin)this);
         pluginManager.registerEvents((Listener)new TriggerBlockListener(), (Plugin)this);
         pluginManager.registerEvents((Listener)new VoidSafetyListener(this.recoveryService), (Plugin)this);

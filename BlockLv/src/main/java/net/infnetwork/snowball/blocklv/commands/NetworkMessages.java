@@ -3,7 +3,6 @@ package net.infnetwork.snowball.blocklv.commands;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
-/** Formats BlockLv command replies with the Inf Network prefix. */
 public final class NetworkMessages {
     static final String PREFIX = "&bI&en&cf &bNetwork &e>> ";
 

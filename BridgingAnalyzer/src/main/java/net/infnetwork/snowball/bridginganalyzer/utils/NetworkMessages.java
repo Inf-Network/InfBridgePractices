@@ -3,7 +3,6 @@ package net.infnetwork.snowball.bridginganalyzer.utils;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
-/** Shared formatting for all command feedback in the Inf Network plugins. */
 public final class NetworkMessages {
     public static final String PREFIX_PATTERN = "&bI&en&cf &bNetwork &e>> ";
 

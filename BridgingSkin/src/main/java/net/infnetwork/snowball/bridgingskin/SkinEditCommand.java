@@ -22,7 +22,6 @@ import net.infnetwork.snowball.bridgingskin.data.PlayerSkin;
 import net.infnetwork.snowball.bridgingskin.data.SkinDataSanitizer;
 import net.infnetwork.snowball.bridgingskin.data.SkinSet;
 
-/** Administrator commands for the paged, click-to-toggle skin catalog. */
 public final class SkinEditCommand implements CommandExecutor {
     private static final int INVENTORY_SIZE = 54;
     private static final List<Material> EDITABLE_CATALOG = buildCatalog();

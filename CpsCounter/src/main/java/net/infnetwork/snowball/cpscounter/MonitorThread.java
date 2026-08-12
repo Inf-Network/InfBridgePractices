@@ -1,12 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.Bukkit
- *  org.bukkit.entity.Player
- *  org.bukkit.plugin.Plugin
- *  org.bukkit.scheduler.BukkitTask
- */
 package net.infnetwork.snowball.cpscounter;
 
 import org.bukkit.Bukkit;
@@ -51,4 +42,3 @@ implements Runnable {
         this.task = Bukkit.getScheduler().runTaskTimer((Plugin)CpsCounter.getInstance(), (Runnable)this, 10L, 10L);
     }
 }
-

@@ -3,7 +3,6 @@ package net.infnetwork.snowball.bridgingskin.lottery;
 import java.util.List;
 import org.bukkit.configuration.file.FileConfiguration;
 
-/** Immutable, validated lottery configuration. */
 public record LotterySettings(
         double singleCost,
         double tenCost,

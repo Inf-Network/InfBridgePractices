@@ -2,13 +2,9 @@ name: BlockLv
 version: ${project.version}
 main: net.infnetwork.snowball.blocklv.BlockLv
 author: luanmenglei
-# 1.21.11 移植版。必须声明 api-version,否则 Paper 按 legacy 模式加载。
 api-version: '1.21'
-# 原版 softdepend 是 HolographicDisplays,本服已换成 DecentHolograms
 softdepend: ["PlaceholderAPI", "DecentHolograms"]
-# Paper 自带 MySQL 与 SQLite 驱动,但不带 PostgreSQL 的。
-# 声明在这里由 Paper 在启动时从 Maven 中央仓库下载到 libraries/,不必 shade 进 jar。
-# 只用 sqlite 后端时这个依赖也会被下载,但不会被加载,代价只是一次几 MB 的下载。
+# Paper supplies the PostgreSQL driver declared here at runtime.
 libraries:
   - org.postgresql:postgresql:42.7.4
 commands:

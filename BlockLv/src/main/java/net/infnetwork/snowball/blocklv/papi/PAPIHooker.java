@@ -1,10 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  me.clip.placeholderapi.expansion.PlaceholderExpansion
- *  org.bukkit.entity.Player
- */
 package net.infnetwork.snowball.blocklv.papi;
 
 import net.infnetwork.snowball.blocklv.BlockLv;
@@ -83,4 +76,3 @@ extends PlaceholderExpansion {
         return "1.0";
     }
 }
-

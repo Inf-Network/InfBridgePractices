@@ -1,6 +1,5 @@
 package net.infnetwork.snowball.bridginganalyzer.recovery;
 
-/** Pure failure-plane policy, kept separate so boundary behavior is unit-testable. */
 public final class VoidSafetyPolicy {
     public static final double DEFAULT_FAILURE_HEIGHT = 0.0;
 

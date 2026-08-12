@@ -16,7 +16,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import net.infnetwork.snowball.bridgingskin.data.PlayerSkin;
 
-/** Opens the UUID-bound, paged player skin selector. */
 public final class SkinSelectCommand implements CommandExecutor {
     private static final int INVENTORY_SIZE = 54;
 

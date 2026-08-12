@@ -1,17 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.Location
- *  org.bukkit.Material
- *  org.bukkit.command.Command
- *  org.bukkit.command.CommandExecutor
- *  org.bukkit.command.CommandSender
- *  org.bukkit.entity.ArmorStand
- *  org.bukkit.entity.EntityType
- *  org.bukkit.entity.Player
- *  org.bukkit.inventory.ItemStack
- */
 package net.infnetwork.snowball.bridginganalyzer.commands;
 
 import org.bukkit.Location;

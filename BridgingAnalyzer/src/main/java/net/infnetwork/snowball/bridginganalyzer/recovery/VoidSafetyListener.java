@@ -1,5 +1,6 @@
 package net.infnetwork.snowball.bridginganalyzer.recovery;
 
+import net.infnetwork.snowball.bridginganalyzer.BridgingAnalyzer;
 import org.bukkit.Location;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -59,6 +60,15 @@ public final class VoidSafetyListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onDeath(PlayerDeathEvent event) {
         recoveryService.cancelPendingRecoveryForDeath(event.getEntity());
+        try {
+            // Real Bukkit deaths used to skip the low-Y recovery cleanup entirely,
+            // leaving every survival block from that attempt in the world.
+            BridgingAnalyzer.getCounter(event.getEntity()).resetImmediately();
+        } catch (RuntimeException exception) {
+            BridgingAnalyzer.getInstance().getLogger().warning(
+                    "玩家死亡后清理练习方块失败，将在后续清理中重试: "
+                            + exception.getMessage());
+        }
         // Keep keys and avoid duplicating the old kit as drops; the selected
         // checkpoint loadout is applied one tick after a normal death respawn.
         event.setKeepInventory(true);

@@ -1,10 +1,3 @@
-/*
- * BlockLv persistence.
- *
- * The authenticated Bukkit UUID is the only player identity used here. When
- * UniversalAuth is deployed behind Velocity modern forwarding this value is
- * its permanent profileUuid, not the temporary frontUuid or Mojang UUID.
- */
 package net.infnetwork.snowball.blocklv;
 
 import java.nio.charset.StandardCharsets;
@@ -36,6 +29,8 @@ import org.bukkit.entity.Player;
 /**
  * One row per authenticated account. {@code uuid} is the primary key; the
  * latest player name is retained only for display and one-time legacy lookup.
+ * With UniversalAuth and Velocity modern forwarding, Bukkit must expose the
+ * permanent profile UUID rather than a temporary front UUID or Mojang UUID.
  */
 public class Database {
 
@@ -174,7 +169,6 @@ public class Database {
         set(player.getUniqueId(), player.getName(), points);
     }
 
-    /** Write or update one authenticated account. */
     public synchronized void set(UUID playerUuid, String playerName, PointManger points) {
         if (points == null) {
             return;

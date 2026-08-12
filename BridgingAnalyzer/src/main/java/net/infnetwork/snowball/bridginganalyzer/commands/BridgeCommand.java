@@ -1,15 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.Bukkit
- *  org.bukkit.command.Command
- *  org.bukkit.command.CommandExecutor
- *  org.bukkit.command.CommandSender
- *  org.bukkit.entity.ArmorStand
- *  org.bukkit.entity.Entity
- *  org.bukkit.entity.Player
- */
 package net.infnetwork.snowball.bridginganalyzer.commands;
 
 import org.bukkit.Bukkit;

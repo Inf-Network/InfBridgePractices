@@ -31,7 +31,6 @@ class DatabaseIdentityMigrationTest {
     void newSchemaUsesUuidAsItsPrimaryKey() throws Exception {
         String url = databaseUrl("new-schema.db");
         try (TestDatabase ignored = open(url)) {
-            // Schema inspection happens after the connection has initialized it.
         }
         assertUuidPrimaryKey(url);
     }

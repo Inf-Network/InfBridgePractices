@@ -1,6 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package net.infnetwork.snowball.bridgingskin.data;
 
 import java.util.LinkedHashSet;
@@ -39,4 +36,3 @@ public class PlayerSkin {
         this.allSkin.add(this.currentSkin);
     }
 }
-

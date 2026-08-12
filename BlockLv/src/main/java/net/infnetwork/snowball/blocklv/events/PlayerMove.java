@@ -1,14 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.Bukkit
- *  org.bukkit.ChatColor
- *  org.bukkit.entity.Player
- *  org.bukkit.event.EventHandler
- *  org.bukkit.event.Listener
- *  org.bukkit.event.player.PlayerMoveEvent
- */
 package net.infnetwork.snowball.blocklv.events;
 
 import net.infnetwork.snowball.blocklv.BlockLv;
@@ -34,4 +23,3 @@ implements Listener {
         }
     }
 }
-

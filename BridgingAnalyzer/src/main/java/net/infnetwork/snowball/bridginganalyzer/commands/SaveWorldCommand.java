@@ -1,25 +1,11 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.Bukkit
- *  org.bukkit.World
- *  org.bukkit.block.Block
- *  org.bukkit.command.Command
- *  org.bukkit.command.CommandExecutor
- *  org.bukkit.command.CommandSender
- */
 package net.infnetwork.snowball.bridginganalyzer.commands;
 
 import org.bukkit.Bukkit;
 import org.bukkit.World;
-import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import net.infnetwork.snowball.bridginganalyzer.BridgingAnalyzer;
-import net.infnetwork.snowball.bridginganalyzer.Counter;
-import net.infnetwork.snowball.bridginganalyzer.utils.Utils;
 import net.infnetwork.snowball.bridginganalyzer.utils.NetworkMessages;
 
 public class SaveWorldCommand
@@ -27,12 +13,7 @@ implements CommandExecutor {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (sender.hasPermission("bridginganalyzer.admin")) {
             NetworkMessages.send(sender, "&c\u6b63\u5728\u4fdd\u5b58\u4e16\u754c....");
-            for (Counter c : BridgingAnalyzer.getCounterSessions()) {
-                c.instantBreakBlock();
-            }
-            for (Block b : Counter.scheduledBreakBlocks) {
-                Utils.breakBlock(b);
-            }
+            BridgingAnalyzer.clearAllPracticeBlocks();
             for (World world : Bukkit.getWorlds()) {
                 world.save();
             }

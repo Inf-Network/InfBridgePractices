@@ -28,7 +28,6 @@ import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import net.infnetwork.snowball.bridginganalyzer.utils.NetworkMessages;
 
-/** Native, holder-backed implementation of the audited /cd and /warpbridge menus. */
 public final class MenuSubsystem implements Listener, AutoCloseable {
     private static final LegacyComponentSerializer LEGACY =
             LegacyComponentSerializer.legacyAmpersand();

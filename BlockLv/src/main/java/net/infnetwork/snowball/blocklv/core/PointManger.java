@@ -1,16 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.Bukkit
- *  org.bukkit.ChatColor
- *  org.bukkit.Color
- *  org.bukkit.FireworkEffect
- *  org.bukkit.entity.EntityType
- *  org.bukkit.entity.Firework
- *  org.bukkit.entity.Player
- *  org.bukkit.inventory.meta.FireworkMeta
- */
 package net.infnetwork.snowball.blocklv.core;
 
 import java.util.HashMap;
@@ -43,7 +30,6 @@ public class PointManger {
         FireworkMeta fwm = fw.getFireworkMeta();
         fwm.setPower(2);
         fwm.addEffect(FireworkEffect.builder().withColor(Color.LIME).flicker(true).build());
-        // 原版漏了这一行,构造好的 meta 从未写回实体,烟花其实一直是默认样式
         fw.setFireworkMeta(fwm);
     }
 
@@ -56,11 +42,7 @@ public class PointManger {
         boolean flag = false;
         long lv = PointManger.players.get((Object)name).lv;
         while (px >= PointManger.getNextLvPx(lv)) {
-            // 扣经验必须放在 ++lv 之前。原版是先自增再按「新等级」的门槛扣,
-            // 而循环判定用的是「当前等级」的门槛 —— 门槛随等级递增,于是每次升级都多扣一截:
-            // 1 级攒满 21 点该升 2 级,却按 2 级的 41 点去扣,px 直接成了 -20。
-            // 1.8 的 setExp 不校验取值范围,这个错一直是静默的;1.21 会抛
-            // IllegalArgumentException,连带 refreshExp 里的 setLevel 一起崩掉。
+            // Deduct the current level's threshold before incrementing the level.
             PointManger.players.get((Object)name).px = px -= PointManger.getNextLvPx(lv);
             PointManger.upLevel(lv + 1L, Bukkit.getServer().getPlayer(name));
             flag = true;
@@ -84,4 +66,3 @@ public class PointManger {
         return PointManger.players.get((Object)name).lv;
     }
 }
-

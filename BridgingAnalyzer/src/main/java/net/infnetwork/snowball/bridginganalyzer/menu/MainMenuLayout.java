@@ -3,7 +3,6 @@ package net.infnetwork.snowball.bridginganalyzer.menu;
 import java.util.List;
 import org.bukkit.Material;
 
-/** Audited replacement for the legacy DeluxeMenus main.yml. */
 final class MainMenuLayout {
     static final int SIZE = 36;
     static final String TITLE = "&e&l搭路练习 &a&l可视化菜单";

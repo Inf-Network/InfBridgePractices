@@ -7,7 +7,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import net.infnetwork.snowball.bridgingskin.data.PlayerSkin;
 
-/** Slot routing for the paged, click-to-toggle administrator skin catalog. */
 public final class SkinEditHolder implements InventoryHolder {
     public static final int CONTENT_SIZE = 45;
     public static final int PREVIOUS_SLOT = 45;

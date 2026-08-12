@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Random;
 import org.bukkit.Material;
 
-/** State for the three independently moving rows in the lottery animation. */
 final class LotteryAnimationState {
     static final int ROW_WIDTH = 9;
 

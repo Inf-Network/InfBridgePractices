@@ -1,10 +1,3 @@
-/*
- * 1.21.11 移植。相对原版的改动:
- *   - 数据层 MySQLUtil -> Database(SQLite,见该类注释)
- *   - 全息依赖 HolographicDisplays -> DecentHolograms
- *   - 关服时补上数据库连接的释放(原版没有)
- * 业务逻辑、经验公式、消息文案一律未动。
- */
 package net.infnetwork.snowball.blocklv;
 
 import java.io.File;
@@ -30,7 +23,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public class BlockLv extends JavaPlugin {
 
-    /** 排行榜刷新间隔(tick)。1000 tick = 50 秒,与原版一致。 */
     private static final long RANK_REFRESH_INTERVAL = 1000L;
 
     static BlockLv instance;
@@ -43,7 +35,6 @@ public class BlockLv extends JavaPlugin {
 
     Plugin papi;
 
-    /** 全息插件是否可用。不可用时排行榜静默跳过,其余功能照常。 */
     private boolean onEnableHolo;
 
     private Database database;
@@ -60,7 +51,6 @@ public class BlockLv extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new PlayerLogin(), this);
         this.getLogger().info("注册事件完毕");
 
-        // 原版检查的是 HolographicDisplays,本服已换成 DecentHolograms
         if (Bukkit.getPluginManager().isPluginEnabled("DecentHolograms")) {
             this.getLogger().info("DecentHolograms正确加载...");
             this.onEnableHolo = true;
@@ -81,14 +71,12 @@ public class BlockLv extends JavaPlugin {
         // SQLite 驱动由 Paper 自带,PostgreSQL 驱动由 plugin.yml 的 libraries 段下载。
         this.database = this.connectDatabase();
         if (this.database == null) {
-            // 连不上就停用,不要带着 null 的 database 继续跑 —— 那会让每次
-            // 放方块、每次登录都抛 NPE,而玩家的等级数据一条都存不下来。
             this.getLogger().severe("数据库不可用,BlockLv 已停用。等级数据不会被记录。");
             Bukkit.getPluginManager().disablePlugin(this);
             return;
         }
 
-        // 热重载场景:插件在有玩家在线时被启用,补读一次他们的数据
+        // Reloads can enable the plugin while players are already online.
         for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
             PointManger.players.put(onlinePlayer.getUniqueId(), this.database.get(onlinePlayer));
         }
@@ -98,15 +86,7 @@ public class BlockLv extends JavaPlugin {
                 this, BlockLv::refreshRank, 0L, RANK_REFRESH_INTERVAL);
     }
 
-    /**
-     * 按 config.yml 的 database.type 建立连接。
-     *
-     * sqlite     —— 本地开发,零配置。
-     * postgresql —— 生产。占位符未替换时直接拒绝启动,而不是拿着 CHANGE_ME
-     *               去连一个不存在的库、报一堆看不懂的错。
-     *
-     * @return 连接失败返回 null,由调用方停用插件
-     */
+    /** Supports SQLite and PostgreSQL; unresolved PostgreSQL placeholders are rejected. */
     private Database connectDatabase() {
         String type = this.getConfig().getString("database.type", "sqlite").trim().toLowerCase(Locale.ROOT);
         Properties props = new Properties();
@@ -150,9 +130,7 @@ public class BlockLv extends JavaPlugin {
         }
     }
 
-    /**
-     * 刷新排行榜。查库在异步线程,改全息回主线程 —— Bukkit 的实体操作不是线程安全的。
-     */
+    /** Queries asynchronously; hologram mutations are dispatched to the Bukkit main thread. */
     public static void refreshRank() {
         if (instance.onEnableHolo && DisPlay.loadLocation("rank") != null) {
             instance.getDatabase().refreshTop();
@@ -166,13 +144,12 @@ public class BlockLv extends JavaPlugin {
         DisPlay.remove();
         PlaceholderAPI.unregisterPlaceholderHook("blocklv");
 
-        // 数据库连不上时 onEnable 会调 disablePlugin,从而走到这里,此时 database 是 null。
-        // 不判空就会在"已经出错"的路径上再抛一个 NPE,把真正的原因淹掉。
+        // disablePlugin may re-enter here before database initialization succeeds.
         if (this.database == null) {
             return;
         }
 
-        // 先落盘在线玩家的数据,再关连接 —— 顺序颠倒会丢最后一次存档
+        // Persist the final online state before closing the connection.
         for (Player player : Bukkit.getOnlinePlayers()) {
             this.database.set(player.getUniqueId(), player.getName(),
                     PointManger.players.get(player.getUniqueId()));

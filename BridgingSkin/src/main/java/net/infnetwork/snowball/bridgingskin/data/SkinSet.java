@@ -1,12 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- *
- * 1.21.11 移植:删除了原版的 data 字节字段。
- * 1.13 扁平化后方块变体各自是独立的 Material —— 1.8 的 SANDSTONE:2 现在叫 CUT_SANDSTONE,
- * data 不再承载任何信息。存量皮肤数据需在部署前一次性转换。
- *
- * 老 json 里残留的 "Data" 键会被 gson 忽略,读取不会报错。
- */
 package net.infnetwork.snowball.bridgingskin.data;
 
 import com.google.gson.annotations.SerializedName;

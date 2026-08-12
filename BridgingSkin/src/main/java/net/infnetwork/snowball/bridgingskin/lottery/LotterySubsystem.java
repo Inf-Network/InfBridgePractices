@@ -11,7 +11,6 @@ import net.infnetwork.snowball.bridgingskin.crate.LotteryCrateService;
 import net.infnetwork.snowball.bridgingskin.crate.SelectionResolver;
 import net.infnetwork.snowball.bridgingskin.crate.WorldEditSelectionResolver;
 
-/** One-call integration facade for BridgingSkin's main class. */
 public final class LotterySubsystem implements AutoCloseable {
     private final LotteryManager manager;
     private final LotteryCrateService crates;

@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.Material;
 
-/** 54-slot, configuration-driven replacement for the legacy warp.yml. */
 final class WarpMenuLayout {
     static final int SIZE = 54;
     static final int RETURN_SLOT = 49;

@@ -4,7 +4,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.command.CommandSender;
 
-/** Centralized, color-aware chat messages for the Inf Network plugins. */
 public final class NetworkMessages {
     static final String PREFIX = "&bI&en&cf &bNetwork &e>> ";
 

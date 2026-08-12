@@ -16,7 +16,6 @@ import net.infnetwork.snowball.bridginganalyzer.api.BridgingAnalyzerAPI;
 import net.infnetwork.snowball.bridgingskin.data.PlayerSkin;
 import net.infnetwork.snowball.bridgingskin.data.SkinSet;
 
-/** Owns all interactions for the player selector and administrator catalog. */
 public final class SkinEditListener implements Listener {
     /**
      * LOWEST is intentional: the legacy listener on BridgingSkin runs at NORMAL and returns

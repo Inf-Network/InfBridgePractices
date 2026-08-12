@@ -305,7 +305,6 @@ class JdbcSkinRepositoryTest {
         return skin.allSkin.stream().map(entry -> entry.material).toList();
     }
 
-    /** Minimal dynamic proxy avoids a heavyweight mock server for identity-only Player calls. */
     private record TestPlayerIdentity(UUID uuid, String name) {
         org.bukkit.entity.Player asPlayer() {
             return (org.bukkit.entity.Player) java.lang.reflect.Proxy.newProxyInstance(

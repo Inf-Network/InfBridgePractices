@@ -1,16 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.bukkit.Material
- *  org.bukkit.block.Block
- *  org.bukkit.block.BlockFace
- *  org.bukkit.command.Command
- *  org.bukkit.command.CommandExecutor
- *  org.bukkit.command.CommandSender
- *  org.bukkit.entity.Player
- *  org.bukkit.inventory.ItemStack
- */
 package net.infnetwork.snowball.bridginganalyzer.commands;
 
 import org.bukkit.Material;
@@ -38,7 +25,8 @@ implements CommandExecutor {
                     for (int z = -3; z < 3; ++z) {
                         Block b = p.getLocation().add((double)x, (double)y, (double)z).getBlock();
                         if (!BridgingAnalyzer.isPlacedByPlayer(b)) continue;
-                        b.setType(Material.AIR);
+                        b.setType(Material.AIR, false);
+                        BridgingAnalyzer.forgetPracticeBlock(b);
                     }
                 }
             }

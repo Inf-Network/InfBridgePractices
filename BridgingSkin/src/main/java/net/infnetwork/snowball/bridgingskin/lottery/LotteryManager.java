@@ -45,7 +45,6 @@ import org.bukkit.scheduler.BukkitTask;
 import net.infnetwork.snowball.bridgingskin.NetworkMessages;
 import net.infnetwork.snowball.bridgingskin.crate.LotteryCrateService;
 
-/** Owns the purchase state machine and all lottery inventories/animations. */
 public final class LotteryManager implements Listener, AutoCloseable {
     private static final int SINGLE_SLOT = 11;
     private static final int TEN_SLOT = 15;
@@ -325,8 +324,6 @@ public final class LotteryManager implements Listener, AutoCloseable {
             inventory.setItem(18 + column,
                     item(animation.bottom(column), " ", NamedTextColor.GRAY, List.of()));
         }
-        // Slot 13 remains the selector, but its material moves with the preview
-        // row instead of being independently randomized on every frame.
         Material center = animation.preview(4);
         inventory.setItem(13, item(center, "?", NamedTextColor.LIGHT_PURPLE, List.of("奖励已安全存入数据库")));
     }
