@@ -189,5 +189,3 @@ lottery:
 - `BridgingSkin` 基于 [SakuraKoi/BridgingSkin](https://github.com/SakuraKoi/BridgingSkin) v3 继续开发。
 - `CpsCounter` 基于 [SakuraKoi/CPSCounter](https://github.com/SakuraKoi/CPSCounter) v3。
 - `BlockLv` 原作者为 luanmenglei；本仓库维护其 Paper 1.21.11 版本。
-
-分发包含 GPL v2 代码的构建产物时，请同时提供对应完整源码并保留许可证与作者信息。
