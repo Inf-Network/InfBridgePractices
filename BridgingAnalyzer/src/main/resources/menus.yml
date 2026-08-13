@@ -6,6 +6,12 @@ permissions:
   warp: bridginganalyzer.menu.warp
   item: bridginganalyzer.menu.item
 
+main:
+  entries:
+    clearblock:
+      # 0 disables charging while keeping the action available.
+      cost: 500
+
 warp:
   title: '&a&l快捷传送'
   # Slots 4 and 49 are reserved for the profile and return buttons. Any other

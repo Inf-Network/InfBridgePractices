@@ -8,9 +8,10 @@ import org.bukkit.inventory.InventoryHolder;
 
 public final class SkinSelectHolder implements InventoryHolder {
     public static final int CONTENT_SIZE = 45;
-    public static final int PREVIOUS_SLOT = 45;
+    public static final int RETURN_SLOT = 45;
+    public static final int PREVIOUS_SLOT = 48;
     public static final int PAGE_SLOT = 49;
-    public static final int NEXT_SLOT = 53;
+    public static final int NEXT_SLOT = 50;
 
     private final UUID playerUuid;
     private final int page;

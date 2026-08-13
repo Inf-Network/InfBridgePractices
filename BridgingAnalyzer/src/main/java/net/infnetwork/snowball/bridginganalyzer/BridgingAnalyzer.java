@@ -40,9 +40,11 @@ import net.infnetwork.snowball.bridginganalyzer.DefaultBlockSkinProvider;
 import net.infnetwork.snowball.bridginganalyzer.HighlightListener;
 import net.infnetwork.snowball.bridginganalyzer.TriggerBlockListener;
 import net.infnetwork.snowball.bridginganalyzer.api.BlockSkinProvider;
+import net.infnetwork.snowball.bridginganalyzer.api.BlockSkinMenuOpener;
 import net.infnetwork.snowball.bridginganalyzer.block.PracticeBlockRegistry;
 import net.infnetwork.snowball.bridginganalyzer.block.PracticeBlockLifecycleListener;
 import net.infnetwork.snowball.bridginganalyzer.commands.BridgeCommand;
+import net.infnetwork.snowball.bridginganalyzer.commands.AnalyzerTabCompleter;
 import net.infnetwork.snowball.bridginganalyzer.commands.ClearCommand;
 import net.infnetwork.snowball.bridginganalyzer.commands.SaveWorldCommand;
 import net.infnetwork.snowball.bridginganalyzer.commands.StuckCommand;
@@ -68,6 +70,7 @@ implements Listener {
     private static BridgingAnalyzer instance;
     private static final PlayerSessionRegistry sessions = new PlayerSessionRegistry();
     private static BlockSkinProvider blockSkinProvider;
+    private static BlockSkinMenuOpener blockSkinMenuOpener;
     private static PracticeBlockRegistry practiceBlockRegistry;
     private static boolean shuttingDown;
     private PlayerRecoveryService recoveryService;
@@ -271,6 +274,7 @@ implements Listener {
 
     public void onDisable() {
         shuttingDown = true;
+        blockSkinMenuOpener = null;
         runDisableStep("关闭菜单入口", () -> {
             if (this.menuEntryService != null) {
                 this.menuEntryService.close();
@@ -355,6 +359,7 @@ implements Listener {
         instance = this;
         shuttingDown = false;
         blockSkinProvider = new DefaultBlockSkinProvider();
+        blockSkinMenuOpener = null;
         practiceBlockRegistry = new PracticeBlockRegistry(this);
         this.menuRuntime = new BukkitMenuRuntime(
                 this, player -> BridgingAnalyzer.clearAllPracticeBlocks());
@@ -398,6 +403,7 @@ implements Listener {
             this.menuSubsystem.openWarp(player);
             return true;
         });
+        AnalyzerTabCompleter.install(this);
         for (Player player : Bukkit.getOnlinePlayers()) {
             this.menuEntryService.ensure(player);
         }
@@ -529,6 +535,31 @@ implements Listener {
 
     public static void setBlockSkinProvider(BlockSkinProvider blockSkinProvider) {
         BridgingAnalyzer.blockSkinProvider = blockSkinProvider;
+    }
+
+    public static void setBlockSkinMenuOpener(BlockSkinMenuOpener opener) {
+        blockSkinMenuOpener = java.util.Objects.requireNonNull(opener, "opener");
+    }
+
+    public static void clearBlockSkinMenuOpener() {
+        blockSkinMenuOpener = null;
+    }
+
+    public static boolean isBlockSkinMenuAvailable() {
+        return blockSkinMenuOpener != null;
+    }
+
+    public static boolean openBlockSkinMenu(Player player) {
+        BlockSkinMenuOpener opener = blockSkinMenuOpener;
+        return opener != null && opener.open(player);
+    }
+
+    public static boolean openMainMenu(Player player) {
+        BridgingAnalyzer plugin = instance;
+        return plugin != null
+                && !shuttingDown
+                && plugin.menuSubsystem != null
+                && plugin.menuSubsystem.openMain(player);
     }
 
     @SuppressWarnings("removal")

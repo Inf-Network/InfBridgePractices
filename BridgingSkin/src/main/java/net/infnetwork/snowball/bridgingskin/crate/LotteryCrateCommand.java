@@ -12,6 +12,12 @@ import org.jetbrains.annotations.Nullable;
 import net.infnetwork.snowball.bridgingskin.NetworkMessages;
 
 public final class LotteryCrateCommand implements CommandExecutor, TabCompleter {
+    public static final String ADMIN_PERMISSION = "bridgingskin.admin.crate";
+    private static final List<String> PLAYER_ACTIONS =
+            List.of("set", "remove", "clear", "clearall", "info", "list");
+    private static final List<String> CONSOLE_ACTIONS =
+            List.of("clear", "clearall", "info", "list");
+
     private final LotteryCrateService crates;
 
     public LotteryCrateCommand(LotteryCrateService crates) {
@@ -21,7 +27,7 @@ public final class LotteryCrateCommand implements CommandExecutor, TabCompleter 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
             @NotNull String label, @NotNull String[] args) {
-        if (!sender.hasPermission("bridgingskin.admin.crate")) {
+        if (!sender.hasPermission(ADMIN_PERMISSION)) {
             NetworkMessages.send(sender, "&c你没有管理抽奖箱的权限");
             return true;
         }
@@ -95,11 +101,21 @@ public final class LotteryCrateCommand implements CommandExecutor, TabCompleter 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender,
             @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
-        if (args.length != 1 || !sender.hasPermission("bridgingskin.admin.crate")) {
+        return tabSuggestions(
+                sender.hasPermission(ADMIN_PERMISSION), sender instanceof Player, args);
+    }
+
+    static List<String> tabSuggestions(
+            boolean authorized,
+            boolean inGamePlayer,
+            String[] args
+    ) {
+        if (!authorized || args.length != 1) {
             return List.of();
         }
         String prefix = args[0].toLowerCase(Locale.ROOT);
-        return List.of("set", "remove", "clear", "clearall", "info", "list").stream()
+        List<String> actions = inGamePlayer ? PLAYER_ACTIONS : CONSOLE_ACTIONS;
+        return actions.stream()
                 .filter(value -> value.startsWith(prefix)).toList();
     }
 }

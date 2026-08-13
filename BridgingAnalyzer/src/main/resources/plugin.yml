@@ -4,6 +4,7 @@ version: ${project.version}
 author: SakuraKooi
 api-version: '1.21'
 depend: [Vault]
+softdepend: [BlockLv]
 commands:
   bridge:
     description: Bridging Analyzer Config
@@ -29,6 +30,9 @@ commands:
     usage: /warpbridge
     aliases: [bridgewarp]
 permissions:
+  bridge.remove:
+    description: 删除最近的村民训练靶刷新点
+    default: op
   bridginganalyzer.noclear:
     default: op
   bridginganalyzer.clear:

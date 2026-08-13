@@ -3,6 +3,7 @@ package net.infnetwork.snowball.blocklv.core;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import net.infnetwork.snowball.blocklv.api.LevelComponents;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -20,14 +21,13 @@ public class PointManger {
     public long px;
 
     public static long getNextLvPx(long lv) {
-        return (long)((double)(lv * 20L) + Math.pow(2.0, lv / 1000L) + (double)(lv / 3L * 2L));
+        return LevelThresholds.threshold(lv);
     }
 
     public static void upLevel(long lv, Player p) {
         p.sendMessage(Component.text("\u642d\u8def\u7b49\u7ea7 >> \u5347\u7ea7\u4e86\uff0c\u76ee\u524d\u60a8\u7684\u7b49\u7ea7\u4e3a",
                         NamedTextColor.AQUA, TextDecoration.BOLD)
-                .append(Component.text(lv, NamedTextColor.GREEN)
-                        .decoration(TextDecoration.BOLD, false)));
+                .append(LevelComponents.badge(lv)));
         if (lv >= 5L && lv % 10L != 0L) {
             return;
         }
@@ -39,17 +39,39 @@ public class PointManger {
     }
 
     public static void addPx(long addpx, UUID name) {
-        if (PointManger.players.get(name).lv == 0L) {
-            PointManger.players.get(name).lv = 1L;
+        PointManger points = PointManger.players.get(name);
+        if (points == null || addpx <= 0L || points.lv < 0L || points.px < 0L) {
+            return;
         }
-        long px = PointManger.players.get(name).px;
-        PointManger.players.get(name).px = px += addpx;
-        long lv = PointManger.players.get(name).lv;
-        while (px >= PointManger.getNextLvPx(lv)) {
-            // Deduct the current level's threshold before incrementing the level.
-            PointManger.players.get(name).px = px -= PointManger.getNextLvPx(lv);
-            PointManger.upLevel(lv + 1L, Bukkit.getServer().getPlayer(name));
-            PointManger.players.get(name).lv = ++lv;
+        if (points.lv == 0L) {
+            points.lv = 1L;
+        }
+        long maximumExperience = getNextLvPx(points.lv) - 1L;
+        if (points.px > maximumExperience) {
+            return;
+        }
+
+        long remaining = addpx;
+        while (remaining > 0L) {
+            long threshold = getNextLvPx(points.lv);
+            long needed = threshold - points.px;
+            if (remaining < needed) {
+                points.px += remaining;
+                remaining = 0L;
+                continue;
+            }
+
+            remaining -= needed;
+            points.px = 0L;
+            if (points.lv == Long.MAX_VALUE) {
+                points.px = threshold - 1L;
+                break;
+            }
+            points.lv++;
+            Player player = Bukkit.getServer().getPlayer(name);
+            if (player != null) {
+                PointManger.upLevel(points.lv, player);
+            }
         }
         PointManger.refreshExp(name);
     }
@@ -57,8 +79,16 @@ public class PointManger {
     public static void refreshExp(UUID name) {
         Player player = Bukkit.getPlayer(name);
         if (player != null) {
-            player.setExp((float)(PointManger.getPx(name) + 1L) * 1.0f / (float)PointManger.getNextLvPx(PointManger.getLv(name)));
-            player.setLevel((int)PointManger.getLv(name));
+            long level = Math.max(0L, PointManger.getLv(name));
+            long threshold = Math.max(1L, PointManger.getNextLvPx(level));
+            long experience = Math.max(0L, PointManger.getPx(name));
+            float progress = (float) Math.min(
+                    1.0D, ((double) experience + 1.0D) / (double) threshold);
+            int visibleLevel = level > Integer.MAX_VALUE
+                    ? Integer.MAX_VALUE
+                    : (int) level;
+            player.setExp(progress);
+            player.setLevel(visibleLevel);
         }
     }
 

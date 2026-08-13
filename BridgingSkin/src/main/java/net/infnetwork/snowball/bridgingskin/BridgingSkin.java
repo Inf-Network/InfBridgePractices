@@ -16,7 +16,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -68,6 +68,7 @@ public final class BridgingSkin extends JavaPlugin implements Listener {
     private JdbcSkinRepository repository;
     private LotterySubsystem lotterySubsystem;
     private boolean providerInstalled;
+    private boolean menuOpenerInstalled;
 
     /**
      * @deprecated Use the UUID-aware service internally. Kept for binary API compatibility.
@@ -126,10 +127,17 @@ public final class BridgingSkin extends JavaPlugin implements Listener {
             }
             skinService = new SkinService(repository, getLogger(), skins);
 
-            Objects.requireNonNull(getCommand("bskin"), "plugin.yml 缺少 bskin")
-                    .setExecutor((CommandExecutor) new SkinSelectCommand());
-            Objects.requireNonNull(getCommand("bskin-edit"), "plugin.yml 缺少 bskin-edit")
-                    .setExecutor((CommandExecutor) new SkinEditCommand());
+            SkinSelectCommand selectCommand = new SkinSelectCommand();
+            PluginCommand selectPluginCommand = Objects.requireNonNull(
+                    getCommand("bskin"), "plugin.yml 缺少 bskin");
+            selectPluginCommand.setExecutor(selectCommand);
+            selectPluginCommand.setTabCompleter(selectCommand);
+
+            SkinEditCommand editCommand = new SkinEditCommand();
+            PluginCommand editPluginCommand = Objects.requireNonNull(
+                    getCommand("bskin-edit"), "plugin.yml 缺少 bskin-edit");
+            editPluginCommand.setExecutor(editCommand);
+            editPluginCommand.setTabCompleter(editCommand);
             Bukkit.getPluginManager().registerEvents(this, this);
             Bukkit.getPluginManager().registerEvents(new SkinEditListener(), this);
 
@@ -142,6 +150,8 @@ public final class BridgingSkin extends JavaPlugin implements Listener {
             }
             BridgingAnalyzerAPI.setBlockSkinProvider(new SkinProvider());
             providerInstalled = true;
+            BridgingAnalyzerAPI.setBlockSkinMenuOpener(SkinSelectCommand::openSelector);
+            menuOpenerInstalled = true;
         } catch (RuntimeException exception) {
             getLogger().log(Level.SEVERE,
                     "BridgingSkin 启动失败；为防止覆盖旧皮肤数据，插件已停止", exception);
@@ -151,6 +161,10 @@ public final class BridgingSkin extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        if (menuOpenerInstalled) {
+            BridgingAnalyzerAPI.clearBlockSkinMenuOpener();
+            menuOpenerInstalled = false;
+        }
         for (Player player : Bukkit.getOnlinePlayers()) {
             Object holder = player.getOpenInventory().getTopInventory().getHolder();
             if (holder instanceof SkinSelectHolder || holder instanceof SkinEditHolder) {

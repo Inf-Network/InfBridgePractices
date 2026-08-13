@@ -1,5 +1,7 @@
 package net.infnetwork.snowball.bridginganalyzer.commands;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -21,16 +23,8 @@ implements CommandExecutor {
             return true;
         }
         if (args.length != 1) {
-            NetworkMessages.send(sender,
-                    "&b&lBridgingAnalyzer",
-                    "&e/bridge highlight    &a\u542f\u7528/\u7981\u7528\u4fa7\u642d\u8f85\u52a9\u6307\u793a",
-                    "&e/bridge pvp          &a\u542f\u7528/\u7981\u7528\u4f24\u5bb3\u5c4f\u853d",
-                    "&e/bridge speed        &a\u542f\u7528/\u7981\u7528\u642d\u8def\u901f\u5ea6\u7edf\u8ba1",
-                    "&e/bridge stand        &a\u542f\u7528/\u7981\u7528\u8d70\u642d\u4f4d\u7f6e\u6307\u793a",
-                    "&e/bridge reset        &a\u91cd\u7f6e\u51fa\u751f\u70b9",
-                    "&e/bridge remove       &a\u5220\u9664\u6700\u8fd1\u7684\u4e00\u4e2a\u9776\u5b50",
-                    "&d\u6240\u914d\u7f6e\u7684\u53c2\u6570\u4ec5\u5bf9\u60a8\u6709\u6548, \u5176\u4ed6\u73a9\u5bb6\u4e0d\u53d7\u5f71\u54cd",
-                    "&bhttps://github.com/SakuraKoi/BridgingAnalyzer");
+            NetworkMessages.send(sender, helpLines(sender.hasPermission("bridge.remove"))
+                    .toArray(String[]::new));
             return true;
         }
         Counter counter = BridgingAnalyzer.getCounter((Player)sender);
@@ -90,5 +84,21 @@ implements CommandExecutor {
             }
         }
         return true;
+    }
+
+    static List<String> helpLines(boolean includeRemove) {
+        List<String> lines = new ArrayList<>(List.of(
+                "&b&lBridgingAnalyzer",
+                "&e/bridge highlight    &a\u542f\u7528/\u7981\u7528\u4fa7\u642d\u8f85\u52a9\u6307\u793a",
+                "&e/bridge pvp          &a\u542f\u7528/\u7981\u7528\u4f24\u5bb3\u5c4f\u853d",
+                "&e/bridge speed        &a\u542f\u7528/\u7981\u7528\u642d\u8def\u901f\u5ea6\u7edf\u8ba1",
+                "&e/bridge stand        &a\u542f\u7528/\u7981\u7528\u8d70\u642d\u4f4d\u7f6e\u6307\u793a",
+                "&e/bridge reset        &a\u91cd\u7f6e\u51fa\u751f\u70b9"));
+        if (includeRemove) {
+            lines.add("&e/bridge remove       &a\u5220\u9664\u6700\u8fd1\u7684\u4e00\u4e2a\u9776\u5b50");
+        }
+        lines.add("&d\u6240\u914d\u7f6e\u7684\u53c2\u6570\u4ec5\u5bf9\u60a8\u6709\u6548, \u5176\u4ed6\u73a9\u5bb6\u4e0d\u53d7\u5f71\u54cd");
+        lines.add("&bhttps://github.com/SakuraKoi/BridgingAnalyzer");
+        return List.copyOf(lines);
     }
 }

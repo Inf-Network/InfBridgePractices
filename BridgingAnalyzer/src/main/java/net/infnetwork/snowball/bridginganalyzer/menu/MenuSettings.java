@@ -9,8 +9,9 @@ import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
-record MenuSettings(String mainPermission, String warpPermission, String itemPermission, String warpTitle,
-                    List<MenuEntry> warpEntries) {
+record MenuSettings(String mainPermission, String warpPermission, String itemPermission,
+                    double clearBlockCost, String warpTitle, List<MenuEntry> warpEntries) {
+    private static final double DEFAULT_CLEAR_BLOCK_COST = 500.0D;
     private static final int WARP_SIZE = 54;
     private static final Set<Integer> RESERVED_WARP_SLOTS = Set.of(4, 49);
 
@@ -18,6 +19,8 @@ record MenuSettings(String mainPermission, String warpPermission, String itemPer
         mainPermission = normalizePermission(mainPermission, "bridginganalyzer.menu.main");
         warpPermission = normalizePermission(warpPermission, "bridginganalyzer.menu.warp");
         itemPermission = normalizePermission(itemPermission, "bridginganalyzer.menu.item");
+        clearBlockCost = MenuPrice.requireValid(
+                clearBlockCost, "main.entries.clearblock.cost");
         warpTitle = warpTitle == null || warpTitle.isBlank() ? "&a&l快捷传送" : warpTitle;
         warpEntries = validateWarpEntries(warpEntries);
     }
@@ -40,6 +43,8 @@ record MenuSettings(String mainPermission, String warpPermission, String itemPer
                 config.getString("permissions.main", "bridginganalyzer.menu.main"),
                 config.getString("permissions.warp", "bridginganalyzer.menu.warp"),
                 config.getString("permissions.item", "bridginganalyzer.menu.item"),
+                MenuPrice.read(config, "main.entries.clearblock.cost",
+                        DEFAULT_CLEAR_BLOCK_COST, "main.entries.clearblock.cost"),
                 config.getString("warp.title", "&a&l快捷传送"),
                 parsed);
     }
@@ -69,14 +74,14 @@ record MenuSettings(String mainPermission, String warpPermission, String itemPer
             throw new IllegalArgumentException("warp.entries." + id + ".material 无效");
         }
         String name = config.getString("display-name", "");
-        double cost = config.getDouble("cost", 0.0D);
-        if (!Double.isFinite(cost) || cost < 0.0D) {
-            throw new IllegalArgumentException("warp.entries." + id + ".cost 必须是非负有限数");
-        }
+        double cost = MenuPrice.read(config, "cost", 0.0D,
+                "warp.entries." + id + ".cost");
 
         List<String> lore = config.getStringList("lore");
         if (lore.isEmpty()) {
             lore = defaultWarpLore(cost);
+        } else if (cost > 0.0D && lore.stream().noneMatch(line -> line.contains("{cost}"))) {
+            lore = withInjectedCost(lore);
         }
         String permission = config.getString("permission", "");
         String type = config.getString("action.type", "").strip().toLowerCase(Locale.ROOT);
@@ -100,6 +105,13 @@ record MenuSettings(String mainPermission, String warpPermission, String itemPer
             return List.of("&8地标", "", "&e点击传送!");
         }
         return List.of("&8地标", "", "&f花费: &6{cost}硬币", "&e点击传送!");
+    }
+
+    private static List<String> withInjectedCost(List<String> configuredLore) {
+        List<String> lore = new ArrayList<>(configuredLore);
+        int insertionPoint = Math.max(0, lore.size() - 1);
+        lore.add(insertionPoint, "&f花费: &6{cost}硬币");
+        return List.copyOf(lore);
     }
 
     private static String normalizePermission(String permission, String fallback) {

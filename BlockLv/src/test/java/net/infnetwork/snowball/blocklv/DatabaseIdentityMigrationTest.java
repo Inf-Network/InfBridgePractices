@@ -35,6 +35,21 @@ class DatabaseIdentityMigrationTest {
     }
 
     @Test
+    void immediateSaveReportsSuccessAndPersistsLevelAdjustment() throws Exception {
+        String url = databaseUrl("immediate-level-save.db");
+        UUID playerUuid = UUID.randomUUID();
+
+        try (TestDatabase database = open(url)) {
+            assertTrue(database.value.save(
+                    playerUuid, "LevelAdminTarget", points(2500L, 42L)));
+
+            PointManger persisted = database.value.get(playerUuid, "LevelAdminTarget");
+            assertEquals(2500L, persisted.lv);
+            assertEquals(42L, persisted.px);
+        }
+    }
+
+    @Test
     void adoptsOneOfflineUuidRowIntoAuthenticatedProfileUuid() throws Exception {
         String url = databaseUrl("offline-to-profile.db");
         UUID offlineUuid = UUID.fromString("0877554e-6f5c-3311-b064-d0ad21caf4e8");

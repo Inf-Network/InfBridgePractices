@@ -3,9 +3,10 @@ package net.infnetwork.snowball.bridginganalyzer.menu;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.Locale;
 import java.util.Objects;
+import java.util.OptionalLong;
 import java.util.logging.Level;
+import net.infnetwork.snowball.blocklv.api.BlockLevelAPI;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import net.milkbowl.vault.permission.Permission;
@@ -149,7 +150,12 @@ public final class BukkitMenuRuntime implements AutoCloseable {
             String balance = economy == null
                     ? "不可用"
                     : economy.format(economy.getBalance(player));
-            return new ProfileSnapshot(group, bridgeLevel(player.getLevel()), balance);
+            OptionalLong loadedLevel = loadedLevel(player);
+            if (loadedLevel.isEmpty()) {
+                return new ProfileSnapshot(group, "加载中", balance);
+            }
+            long level = loadedLevel.getAsLong();
+            return new ProfileSnapshot(group, Long.toString(level), balance);
         }
 
         private Economy economy() {
@@ -164,8 +170,15 @@ public final class BukkitMenuRuntime implements AutoCloseable {
             return registration == null ? null : registration.getProvider();
         }
 
-        private static String bridgeLevel(int level) {
-            return String.format(Locale.ROOT, "[%d✫]", Math.max(0, level));
+        private OptionalLong loadedLevel(Player player) {
+            if (!server.getPluginManager().isPluginEnabled("BlockLv")) {
+                return OptionalLong.empty();
+            }
+            try {
+                return BlockLevelAPI.loadedLevel(player.getUniqueId());
+            } catch (LinkageError unavailableApi) {
+                return OptionalLong.empty();
+            }
         }
     }
 }

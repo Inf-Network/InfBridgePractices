@@ -64,9 +64,11 @@ public class BlockLv extends JavaPlugin {
             }
         }
 
-        Bukkit.getPluginCommand("blocklv").setExecutor(new MainCommands());
+        MainCommands mainCommands = new MainCommands();
+        Bukkit.getPluginCommand("blocklv").setExecutor(mainCommands);
+        Bukkit.getPluginCommand("blocklv").setTabCompleter(mainCommands);
 
-        // SQLite 驱动由 Paper 自带,PostgreSQL 驱动由 plugin.yml 的 libraries 段下载。
+        // SQLite is supplied by Paper; PostgreSQL is bundled in this plugin.
         this.database = this.connectDatabase();
         if (this.database == null) {
             this.getLogger().severe("数据库不可用,BlockLv 已停用。等级数据不会被记录。");
@@ -106,6 +108,12 @@ public class BlockLv extends JavaPlugin {
                 url = "jdbc:postgresql://" + host + ":" + port + "/" + db;
                 props.setProperty("user", user);
                 props.setProperty("password", password);
+                try {
+                    Class.forName("org.postgresql.Driver");
+                } catch (ClassNotFoundException exception) {
+                    this.getLogger().severe("PostgreSQL JDBC 驱动未打包到 BlockLv");
+                    return null;
+                }
                 break;
             }
             case "sqlite": {

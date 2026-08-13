@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
+import net.infnetwork.snowball.bridginganalyzer.api.BridgingAnalyzerAPI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -79,7 +80,7 @@ public final class MenuSubsystem implements Listener, AutoCloseable {
         }
 
         List<MenuEntry> entries = screen == MenuAction.Screen.MAIN
-                ? MainMenuLayout.entries()
+                ? MainMenuLayout.entries(settings)
                 : WarpMenuLayout.entries(settings);
         int size = screen == MenuAction.Screen.MAIN ? MainMenuLayout.SIZE : WarpMenuLayout.SIZE;
         String title = screen == MenuAction.Screen.MAIN ? MainMenuLayout.TITLE : settings.warpTitle();
@@ -172,7 +173,9 @@ public final class MenuSubsystem implements Listener, AutoCloseable {
                         "执行 " + player.getName() + " 的菜单动作 " + entry.id() + " 时出错", exception);
                 send(player, "&c操作执行失败，请联系管理员");
             }
-            if (!successful && !(entry.binding().action() instanceof MenuAction.Paid)) {
+            if (!successful
+                    && !(entry.binding().action() instanceof MenuAction.Paid)
+                    && entry.binding().action() != MenuAction.OpenSkin.INSTANCE) {
                 send(player, "&c操作未能完成");
             }
             if (entry.binding().closeAfter() && player.isOnline()) {
@@ -208,6 +211,13 @@ public final class MenuSubsystem implements Listener, AutoCloseable {
                 send(player, "&a清理成功!");
             }
             return cleared;
+        }
+        if (action == MenuAction.OpenSkin.INSTANCE) {
+            if (!BridgingAnalyzerAPI.isBlockSkinMenuAvailable()) {
+                send(player, "&c方块皮肤功能暂不可用");
+                return false;
+            }
+            return BridgingAnalyzerAPI.openBlockSkinMenu(player);
         }
         if (action == MenuAction.Close.INSTANCE) {
             player.closeInventory();
@@ -322,14 +332,25 @@ public final class MenuSubsystem implements Listener, AutoCloseable {
         if (meta instanceof SkullMeta skull && entry.material() == Material.PLAYER_HEAD) {
             skull.setOwningPlayer(player);
         }
+        if (entry.id().equals("profile")) {
+            meta.displayName(ProfileItemComponents.displayName());
+            meta.lore(ProfileItemComponents.lore(profile));
+            stack.setItemMeta(meta);
+            return stack;
+        }
+        if (entry.id().equals("skin")) {
+            meta.displayName(SkinSelectorItemComponents.displayName());
+            meta.lore(SkinSelectorItemComponents.lore());
+            stack.setItemMeta(meta);
+            return stack;
+        }
 
         Map<String, String> placeholders = new HashMap<>();
         placeholders.put("{group}", profile.group());
-        placeholders.put("{level}", profile.level());
         placeholders.put("{balance}", profile.balance());
         placeholders.put("{player}", player.getName());
         double cost = cost(entry.binding());
-        placeholders.put("{cost}", formatMoney(cost));
+        placeholders.put("{cost}", MenuPrice.format(cost));
         meta.displayName(component(expand(entry.displayName(), placeholders)));
         meta.lore(entry.lore().stream()
                 .map(line -> component(expand(line, placeholders)))
@@ -375,10 +396,6 @@ public final class MenuSubsystem implements Listener, AutoCloseable {
             expanded = expanded.replace(placeholder.getKey(), placeholder.getValue());
         }
         return expanded;
-    }
-
-    private static String formatMoney(double amount) {
-        return amount == Math.rint(amount) ? Long.toString((long) amount) : Double.toString(amount);
     }
 
     private static Component component(String legacy) {

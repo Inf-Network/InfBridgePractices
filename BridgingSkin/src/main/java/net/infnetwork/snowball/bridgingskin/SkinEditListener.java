@@ -100,6 +100,20 @@ public final class SkinEditListener implements Listener {
         if (!player.getUniqueId().equals(holder.playerUuid())) {
             return;
         }
+        if (!player.hasPermission(SkinSelectCommand.PERMISSION)) {
+            NetworkMessages.send(player, "&c你没有权限打开方块皮肤选择器");
+            player.closeInventory();
+            return;
+        }
+        if (rawSlot == SkinSelectHolder.RETURN_SLOT) {
+            if (holder.claimAction()) {
+                scheduleWhileViewing(player, holder, () -> {
+                    holder.releaseAction();
+                    BridgingAnalyzerAPI.openMainMenu(player);
+                });
+            }
+            return;
+        }
         if (rawSlot == SkinSelectHolder.PREVIOUS_SLOT && holder.page() > 0) {
             if (holder.claimAction()) {
                 scheduleWhileViewing(player, holder, () -> {

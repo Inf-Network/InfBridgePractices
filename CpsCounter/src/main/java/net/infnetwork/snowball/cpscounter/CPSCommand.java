@@ -1,16 +1,17 @@
 package net.infnetwork.snowball.cpscounter;
 
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabExecutor;
 import org.bukkit.entity.Player;
 
 public class CPSCommand
-implements CommandExecutor {
+implements TabExecutor {
     private final Map<CommandSender, Long> executeTime = new HashMap<>();
 
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -94,5 +95,22 @@ implements CommandExecutor {
             return null;
         }
         return offp.getPlayer();
+    }
+
+    @Override
+    public List<String> onTabComplete(
+            CommandSender sender,
+            Command command,
+            String alias,
+            String[] args) {
+        List<String> visiblePlayers = Bukkit.getOnlinePlayers().stream()
+                .filter(player -> !(sender instanceof Player viewer) || viewer.canSee(player))
+                .map(Player::getName)
+                .toList();
+        return CpsTabCompletion.complete(
+                args,
+                sender.hasPermission("cpscounter.cps"),
+                sender instanceof Player,
+                visiblePlayers);
     }
 }

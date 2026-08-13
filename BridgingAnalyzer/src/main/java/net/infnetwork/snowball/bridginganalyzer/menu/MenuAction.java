@@ -42,6 +42,10 @@ sealed interface MenuAction {
         INSTANCE
     }
 
+    enum OpenSkin implements MenuAction {
+        INSTANCE
+    }
+
     enum Close implements MenuAction {
         INSTANCE
     }

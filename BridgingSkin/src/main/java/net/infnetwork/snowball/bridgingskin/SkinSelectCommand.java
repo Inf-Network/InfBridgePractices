@@ -6,20 +6,24 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TranslatableComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import net.infnetwork.snowball.bridgingskin.data.PlayerSkin;
 
-public final class SkinSelectCommand implements CommandExecutor {
+public final class SkinSelectCommand implements CommandExecutor, TabCompleter {
+    public static final String PERMISSION = "bridgingskin.skin.select";
     private static final int INVENTORY_SIZE = 54;
 
     @Override
@@ -28,11 +32,40 @@ public final class SkinSelectCommand implements CommandExecutor {
             NetworkMessages.send(sender, "&c仅玩家可以执行.");
             return true;
         }
-        openPage(player, 0);
+        openSelector(player);
         return true;
     }
 
+    @Override
+    public List<String> onTabComplete(
+            CommandSender sender,
+            Command command,
+            String alias,
+            String[] args
+    ) {
+        // /bskin has no arguments. Returning an explicit empty list also prevents Bukkit's
+        // default online-player completion from leaking unrelated names.
+        return List.of();
+    }
+
+    public static boolean openSelector(Player player) {
+        if (!player.hasPermission(PERMISSION)) {
+            NetworkMessages.send(player, "&c你没有权限打开方块皮肤选择器");
+            return false;
+        }
+        return tryOpenPage(player, 0);
+    }
+
     public static void openPage(Player player, int requestedPage) {
+        if (!player.hasPermission(PERMISSION)) {
+            NetworkMessages.send(player, "&c你没有权限打开方块皮肤选择器");
+            player.closeInventory();
+            return;
+        }
+        tryOpenPage(player, requestedPage);
+    }
+
+    private static boolean tryOpenPage(Player player, int requestedPage) {
         try {
             SkinService service = BridgingSkin.getSkinService();
             PlayerSkin skin = service.getOrCreate(player);
@@ -69,10 +102,12 @@ public final class SkinSelectCommand implements CommandExecutor {
                     slot, skinItem(material, material.name().equals(currentMaterial))));
             decorateNavigation(inventory, page, totalPages);
             player.openInventory(inventory);
+            return true;
         } catch (RuntimeException exception) {
             BridgingSkin.getInstance().getLogger().severe(
                     "无法打开 " + player.getName() + " 的皮肤菜单: " + exception.getMessage());
             NetworkMessages.send(player, "&c皮肤数据读取失败，请稍后重试.");
+            return false;
         }
     }
 
@@ -83,8 +118,8 @@ public final class SkinSelectCommand implements CommandExecutor {
                 ? itemComponent(Component.empty()
                         .append(Component.text(
                                 "当前皮肤 ", NamedTextColor.GREEN, TextDecoration.BOLD))
-                        .append(Component.text(material.name(), NamedTextColor.WHITE)))
-                : itemComponent(Component.text(material.name(), NamedTextColor.YELLOW));
+                        .append(materialName(material, NamedTextColor.WHITE)))
+                : itemComponent(materialName(material, NamedTextColor.YELLOW));
         meta.displayName(name);
         meta.lore(List.of(itemComponent(Component.text(
                 selected ? "正在使用" : "点击选择此皮肤",
@@ -104,6 +139,9 @@ public final class SkinSelectCommand implements CommandExecutor {
                     namedItem(Material.ARROW,
                             Component.text("上一页", NamedTextColor.YELLOW)));
         }
+        inventory.setItem(SkinSelectHolder.RETURN_SLOT,
+                namedItem(Material.FEATHER,
+                        Component.text("返回主菜单", NamedTextColor.GOLD)));
         inventory.setItem(SkinSelectHolder.PAGE_SLOT,
                 namedItem(Material.PAPER, Component.text(
                         "第 " + (page + 1) + " / " + totalPages + " 页",
@@ -125,5 +163,9 @@ public final class SkinSelectCommand implements CommandExecutor {
 
     static Component itemComponent(Component component) {
         return component;
+    }
+
+    static TranslatableComponent materialName(Material material, TextColor color) {
+        return SkinItemComponents.materialName(material, color);
     }
 }

@@ -22,6 +22,7 @@ public final class SkinDatabaseFactory {
                 jdbcUrl = "jdbc:sqlite:" + databaseFile.getPath();
             }
             case "postgresql", "postgres", "pgsql" -> {
+                loadDriver("org.postgresql.Driver", "PostgreSQL");
                 String host = required(config, "database.postgresql.host");
                 String database = required(config, "database.postgresql.database");
                 String user = required(config, "database.postgresql.user");
@@ -39,6 +40,14 @@ public final class SkinDatabaseFactory {
         }
         plugin.getLogger().info("BridgingSkin 正在连接 " + type + " 数据库");
         return new JdbcSkinRepository(jdbcUrl, properties, plugin.getLogger());
+    }
+
+    private static void loadDriver(String className, String databaseName) {
+        try {
+            Class.forName(className);
+        } catch (ClassNotFoundException exception) {
+            throw new SkinStorageException(databaseName + " JDBC 驱动未打包到 BridgingSkin", exception);
+        }
     }
 
     private static String required(FileConfiguration config, String path) {

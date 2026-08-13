@@ -11,4 +11,11 @@ permissions:
   cpscounter.cps:
     default: op
   cpscounter.bypass:
+    description: Do not trigger automatic high-CPS warnings.
+    default: op
+  cpscounter.bypasslimit:
+    description: Bypass the one-second CPS command cooldown.
+    default: op
+  cpscounter.monitor:
+    description: Receive automatic high-CPS warnings.
     default: op

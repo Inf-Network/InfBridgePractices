@@ -4,15 +4,21 @@ main: net.infnetwork.snowball.blocklv.BlockLv
 author: luanmenglei
 api-version: '1.21'
 softdepend: ["PlaceholderAPI", "DecentHolograms"]
-# Paper supplies the PostgreSQL driver declared here at runtime.
-libraries:
-  - org.postgresql:postgresql:42.7.4
 commands:
   blocklv:
     description: "main command"
-    usage: "/blocklv <add|clear|setrank|refresh>"
+    usage: "/blocklv <add|addlevel|decrease|decreaselevel|clear|setrank|refresh>"
 permissions:
   blocklv.add:
+    default: op
+  blocklv.addlevel:
+    description: "增加在线玩家的搭路等级并立即保存"
+    default: op
+  blocklv.decrease:
+    description: "减少在线玩家的搭路进度，可跨级回退并立即保存"
+    default: op
+  blocklv.decreaselevel:
+    description: "减少在线玩家的搭路等级并立即保存"
     default: op
   blocklv.clear:
     default: op

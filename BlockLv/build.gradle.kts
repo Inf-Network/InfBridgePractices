@@ -1,9 +1,15 @@
+import org.gradle.api.file.DuplicatesStrategy
+import org.gradle.jvm.tasks.Jar
+
 group = "net.infnetwork.snowball"
 version = "1.0-1.21.11"
 
 dependencies {
     compileOnly("me.clip:placeholderapi:2.11.6")
     compileOnly("com.github.decentsoftware-eu.decentholograms:plugin:2.10.1") {
+        isTransitive = false
+    }
+    implementation("org.postgresql:postgresql:42.7.4") {
         isTransitive = false
     }
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
@@ -14,4 +20,14 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.named<Jar>("jar") {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({
+        configurations.runtimeClasspath.get()
+            .filter { it.name.startsWith("postgresql-") }
+            .map { zipTree(it) }
+    })
+    exclude("META-INF/*.SF", "META-INF/*.RSA", "META-INF/*.DSA")
 }

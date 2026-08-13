@@ -10,6 +10,26 @@ public class BridgingAnalyzerAPI {
         BridgingAnalyzer.setBlockSkinProvider(blockSkinProvider);
     }
 
+    public static void setBlockSkinMenuOpener(BlockSkinMenuOpener opener) {
+        BridgingAnalyzer.setBlockSkinMenuOpener(opener);
+    }
+
+    public static void clearBlockSkinMenuOpener() {
+        BridgingAnalyzer.clearBlockSkinMenuOpener();
+    }
+
+    public static boolean isBlockSkinMenuAvailable() {
+        return BridgingAnalyzer.isBlockSkinMenuAvailable();
+    }
+
+    public static boolean openBlockSkinMenu(Player player) {
+        return BridgingAnalyzer.openBlockSkinMenu(player);
+    }
+
+    public static boolean openMainMenu(Player player) {
+        return BridgingAnalyzer.openMainMenu(player);
+    }
+
     public static void clearEffect(Player player) {
         BridgingAnalyzer.clearEffect(player);
     }
@@ -66,4 +86,3 @@ public class BridgingAnalyzerAPI {
         return BridgingAnalyzer.getCounter(player).isStandBridgeMarkerEnabled();
     }
 }
-

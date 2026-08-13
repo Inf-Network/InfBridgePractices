@@ -10,20 +10,24 @@ final class MainMenuLayout {
     private MainMenuLayout() {
     }
 
-    static List<MenuEntry> entries() {
+    static List<MenuEntry> entries(MenuSettings settings) {
+        double clearBlockCost = settings.clearBlockCost();
+        MenuAction clearBlockAction = clearBlockCost > 0.0D
+                ? new MenuAction.Paid(clearBlockCost, MenuAction.ClearAll.INSTANCE, true)
+                : MenuAction.ClearAll.INSTANCE;
         return List.of(
                 profile(),
-                new MenuEntry("pickaxe", 12, Material.GOLDEN_PICKAXE, "&6获取稿子",
-                        List.of("&8道具", "&7被困住了?", "&7用稿子挖出一片天地", "&e", "&e点击获取稿子!"),
-                        "", MenuBinding.both(new MenuAction.PlayerCommand("imstuck"), true)),
+                new MenuEntry("skin", 12, Material.CUT_SANDSTONE, "方块皮肤选择器",
+                        List.of("外观", "查看并切换已解锁的", "搭路方块皮肤", "", "点击打开!"),
+                        "",
+                        MenuBinding.both(MenuAction.OpenSkin.INSTANCE, false)),
                 new MenuEntry("warp", 13, Material.COMPASS, "&a快捷传送",
                         List.of("&8传送", "&7选择想要到达的位置直接传送", "&e", "&e点击打开!"),
                         "", MenuBinding.both(new MenuAction.Open(MenuAction.Screen.WARP), false)),
                 new MenuEntry("clearblock", 14, Material.TNT, "&c清除所有方块",
                         List.of("&8道具", "&7清理所有方块", "&7推倒一切障碍", "&e",
-                                "&f花费: &6500金币", "&e点击购买!"),
-                        "", MenuBinding.both(new MenuAction.Paid(
-                                500.0D, MenuAction.ClearAll.INSTANCE, true), true)),
+                                "&f花费: &6{cost}金币", "&e点击购买!"),
+                        "", MenuBinding.both(clearBlockAction, true)),
                 toggle("pvp", 20, Material.IRON_SWORD, "&a开/关PVP模式",
                         List.of("&8战斗", "&7战桥等区域可以开启", "&7PvP模式,与他人切磋", "&e", "&e点击切换!"),
                         "bridge pvp"),
@@ -45,9 +49,7 @@ final class MainMenuLayout {
     }
 
     static MenuEntry profile() {
-        return new MenuEntry("profile", 4, Material.PLAYER_HEAD, "&e&l个人信息",
-                List.of("&c", "&7身份: {group}", "&7等级: {level}", "&7硬币: &6{balance}",
-                        "&e", "&bI&en&cf &bNetwork &a&l搭路练习"),
+        return new MenuEntry("profile", 4, Material.PLAYER_HEAD, "个人信息", List.of(),
                 "", null);
     }
 

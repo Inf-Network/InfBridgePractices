@@ -27,6 +27,7 @@ class WarpMenuSettingsTest {
         assertEquals("bridginganalyzer.menu.main", settings.mainPermission());
         assertEquals("bridginganalyzer.menu.warp", settings.warpPermission());
         assertEquals("bridginganalyzer.menu.item", settings.itemPermission());
+        assertEquals(500.0D, settings.clearBlockCost());
         assertEquals(10, settings.warpEntries().size());
         assertEquals(Material.BEACON, bySlot.get(11).material());
         assertEquals(new MenuAction.PlayerCommand("spawn"), bySlot.get(11).binding().action());
@@ -47,6 +48,60 @@ class WarpMenuSettingsTest {
                 .orElseThrow();
         assertEquals("back", back.id());
         assertEquals(new MenuAction.Open(MenuAction.Screen.MAIN), back.binding().action());
+    }
+
+    @Test
+    void everyWarpPriceCanBeConfiguredIndependently() {
+        YamlConfiguration config = bundledConfiguration();
+        List<String> ids = List.of(
+                "spawn", "ceda", "qiangda", "susheng", "sujiang",
+                "tnt", "youxian", "jiangluozijiu", "jituixunlian", "zhanqiao");
+        Map<String, Double> expected = new HashMap<>();
+        for (int index = 0; index < ids.size(); index++) {
+            double cost = index + 0.25D;
+            String id = ids.get(index);
+            config.set("warp.entries." + id + ".cost", cost);
+            expected.put(id, cost);
+        }
+
+        MenuSettings settings = MenuSettings.load(config);
+        for (MenuEntry entry : settings.warpEntries()) {
+            MenuAction.Paid paid = assertInstanceOf(MenuAction.Paid.class,
+                    entry.binding().action(), entry.id());
+            assertEquals(expected.get(entry.id()), paid.cost(), entry.id());
+            assertTrue(entry.lore().stream().anyMatch(line -> line.contains("{cost}")),
+                    entry.id());
+            assertEquals(MenuPrice.format(expected.get(entry.id())),
+                    MenuPrice.format(paid.cost()), entry.id());
+        }
+    }
+
+    @Test
+    void missingMainPriceKeepsTheLegacyFiveHundredDefault() {
+        YamlConfiguration config = bundledConfiguration();
+        config.set("main.entries.clearblock.cost", null);
+
+        assertEquals(500.0D, MenuSettings.load(config).clearBlockCost());
+    }
+
+    @Test
+    void nonNumericAndUnsafePricesFailFastInsteadOfBecomingFree() {
+        List<Object> invalid = List.of(
+                "100", true, -1.0D, Double.NaN,
+                Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY);
+        for (Object value : invalid) {
+            YamlConfiguration mainConfig = bundledConfiguration();
+            mainConfig.set("main.entries.clearblock.cost", value);
+            IllegalArgumentException mainFailure = assertThrows(
+                    IllegalArgumentException.class, () -> MenuSettings.load(mainConfig));
+            assertTrue(mainFailure.getMessage().contains("main.entries.clearblock.cost"));
+
+            YamlConfiguration warpConfig = bundledConfiguration();
+            warpConfig.set("warp.entries.spawn.cost", value);
+            IllegalArgumentException warpFailure = assertThrows(
+                    IllegalArgumentException.class, () -> MenuSettings.load(warpConfig));
+            assertTrue(warpFailure.getMessage().contains("warp.entries.spawn.cost"));
+        }
     }
 
     @Test
@@ -82,13 +137,17 @@ class WarpMenuSettingsTest {
     }
 
     private static MenuSettings bundledSettings() {
+        return MenuSettings.load(bundledConfiguration());
+    }
+
+    private static YamlConfiguration bundledConfiguration() {
         InputStream input = WarpMenuSettingsTest.class.getClassLoader()
                 .getResourceAsStream("menus.yml");
         if (input == null) {
             throw new AssertionError("menus.yml is missing");
         }
         try (InputStreamReader reader = new InputStreamReader(input, StandardCharsets.UTF_8)) {
-            return MenuSettings.load(YamlConfiguration.loadConfiguration(reader));
+            return YamlConfiguration.loadConfiguration(reader);
         } catch (Exception exception) {
             throw new AssertionError(exception);
         }

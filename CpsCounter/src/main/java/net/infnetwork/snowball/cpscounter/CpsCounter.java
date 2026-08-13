@@ -32,7 +32,9 @@ implements Listener {
     public void onEnable() {
         instance = this;
         Bukkit.getPluginManager().registerEvents(this, this);
-        this.getCommand("cps").setExecutor(new CPSCommand());
+        CPSCommand cpsCommand = new CPSCommand();
+        this.getCommand("cps").setExecutor(cpsCommand);
+        this.getCommand("cps").setTabCompleter(cpsCommand);
     }
 
     @EventHandler

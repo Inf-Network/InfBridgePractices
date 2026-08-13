@@ -14,6 +14,9 @@ final class MaterialDisplayNames {
     }
 
     static String blockTranslationKey(Material material) {
-        return "block." + material.getKey().getNamespace() + "." + material.getKey().getKey();
+        return "block."
+                + material.getKey().getNamespace()
+                + "."
+                + material.getKey().getKey();
     }
 }

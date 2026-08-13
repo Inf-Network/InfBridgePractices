@@ -4,8 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.infnetwork.snowball.blocklv.BlockLv;
+import net.infnetwork.snowball.blocklv.api.LevelComponents;
+import net.infnetwork.snowball.blocklv.text.LegacyComponentOutput;
 import eu.decentsoftware.holograms.api.DHAPI;
 import eu.decentsoftware.holograms.api.holograms.Hologram;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -45,21 +49,28 @@ public class DisPlay {
         }
 
         List<String> lines = new ArrayList<>();
-        lines.add("&bI&en&cf &eBridge &aTop 10".replace('&', '§'));
-        lines.add("§r§r");
+        lines.add(LegacyComponentOutput.serialize(Component.empty()
+                .append(Component.text("I", NamedTextColor.AQUA))
+                .append(Component.text("n", NamedTextColor.YELLOW))
+                .append(Component.text("f ", NamedTextColor.RED))
+                .append(Component.text("Bridge ", NamedTextColor.YELLOW))
+                .append(Component.text("Top 10", NamedTextColor.GREEN))));
+        lines.add("");
 
         for (int i = 1; i <= 10 && i <= tops.size(); ++i) {
             Lv entry = tops.get(i - 1);
             if (entry == null) {
                 break;
             }
-            String color = switch (i) {
-                case 1 -> "§6";
-                case 2 -> "§b";
-                case 3 -> "§a";
-                default -> "§7";
+            NamedTextColor color = switch (i) {
+                case 1 -> NamedTextColor.GOLD;
+                case 2 -> NamedTextColor.AQUA;
+                case 3 -> NamedTextColor.GREEN;
+                default -> NamedTextColor.GRAY;
             };
-            lines.add(color + i + ". " + entry.name + " " + entry.lv + "✫");
+            Component line = Component.text(i + ". " + entry.name + " ", color)
+                    .append(LevelComponents.badge(entry.level()));
+            lines.add(LegacyComponentOutput.serialize(line));
         }
 
         Hologram holo = DHAPI.getHologram(HOLOGRAM_NAME);

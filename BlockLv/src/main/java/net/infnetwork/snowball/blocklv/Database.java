@@ -170,18 +170,28 @@ public class Database {
     }
 
     public synchronized void set(UUID playerUuid, String playerName, PointManger points) {
+        save(playerUuid, playerName, points);
+    }
+
+    /**
+     * Saves one loaded profile immediately and reports whether the write reached the database.
+     */
+    public synchronized boolean save(
+            UUID playerUuid, String playerName, PointManger points) {
         if (points == null) {
-            return;
+            return false;
         }
         if (writeBlocked.contains(playerUuid)) {
             logger.warning("BlockLv 已跳过 " + playerName
                     + " 的保存:本次登录的数据读取或身份迁移未成功");
-            return;
+            return false;
         }
         try {
             upsert(playerUuid, playerName, points.lv, points.px);
+            return true;
         } catch (SQLException exception) {
             logger.log(Level.SEVERE, "保存玩家等级失败: " + playerUuid, exception);
+            return false;
         }
     }
 
@@ -398,7 +408,7 @@ public class Database {
                         + TOP_SIZE);
              ResultSet result = statement.executeQuery()) {
             while (result.next()) {
-                tops.add(new Lv((int) result.getLong("lv"), result.getString("name")));
+                tops.add(new Lv(result.getLong("lv"), result.getString("name")));
             }
         }
         return tops;

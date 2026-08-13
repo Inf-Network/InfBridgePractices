@@ -17,6 +17,7 @@ import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -25,9 +26,10 @@ import net.infnetwork.snowball.bridgingskin.data.PlayerSkin;
 import net.infnetwork.snowball.bridgingskin.data.SkinDataSanitizer;
 import net.infnetwork.snowball.bridgingskin.data.SkinSet;
 
-public final class SkinEditCommand implements CommandExecutor {
+public final class SkinEditCommand implements CommandExecutor, TabCompleter {
+    public static final String ADMIN_PERMISSION = "bridgingSkin.admin";
     private static final int INVENTORY_SIZE = 54;
-    private static final List<Material> EDITABLE_CATALOG = buildCatalog();
+    private static final List<String> SUBCOMMANDS = List.of("edit", "clear");
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -35,7 +37,7 @@ public final class SkinEditCommand implements CommandExecutor {
             NetworkMessages.send(sender, "&c仅玩家可以执行此命令.");
             return true;
         }
-        if (!sender.hasPermission("bridgingSkin.admin")) {
+        if (!sender.hasPermission(ADMIN_PERMISSION)) {
             NetworkMessages.send(sender, "&c你没有权限执行此命令.");
             return true;
         }
@@ -90,6 +92,64 @@ public final class SkinEditCommand implements CommandExecutor {
         }
     }
 
+    @Override
+    public List<String> onTabComplete(
+            CommandSender sender,
+            Command command,
+            String alias,
+            String[] args
+    ) {
+        if (!(sender instanceof Player viewer) || !sender.hasPermission(ADMIN_PERMISSION)) {
+            return List.of();
+        }
+
+        List<String> onlinePlayers = List.of();
+        List<String> clearableMaterials = List.of();
+        if (args.length == 2 && args[0].equalsIgnoreCase("edit")) {
+            onlinePlayers = sender.getServer().getOnlinePlayers().stream()
+                    .filter(viewer::canSee)
+                    .map(Player::getName)
+                    .toList();
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("clear")) {
+            clearableMaterials = Catalog.CLEARABLE_NAMES;
+        }
+        return tabSuggestions(true, args, onlinePlayers, clearableMaterials);
+    }
+
+    static List<String> tabSuggestions(
+            boolean authorizedPlayer,
+            String[] args,
+            Iterable<String> onlinePlayers,
+            Iterable<String> clearableMaterials
+    ) {
+        if (!authorizedPlayer) {
+            return List.of();
+        }
+        if (args.length == 1) {
+            return matchingPrefix(SUBCOMMANDS, args[0]);
+        }
+        if (args.length != 2) {
+            return List.of();
+        }
+        return switch (args[0].toLowerCase(Locale.ROOT)) {
+            case "edit" -> matchingPrefix(onlinePlayers, args[1]);
+            case "clear" -> matchingPrefix(clearableMaterials, args[1]);
+            default -> List.of();
+        };
+    }
+
+    private static List<String> matchingPrefix(Iterable<String> candidates, String rawPrefix) {
+        String prefix = rawPrefix.toLowerCase(Locale.ROOT);
+        List<String> matches = new ArrayList<>();
+        for (String candidate : candidates) {
+            if (candidate != null && candidate.toLowerCase(Locale.ROOT).startsWith(prefix)) {
+                matches.add(candidate);
+            }
+        }
+        matches.sort(String.CASE_INSENSITIVE_ORDER);
+        return List.copyOf(matches);
+    }
+
     public static void openPage(
             Player editor,
             UUID targetUuid,
@@ -107,18 +167,18 @@ public final class SkinEditCommand implements CommandExecutor {
 
             Set<Material> owned = materialSet(target.allSkin);
             int totalPages = Math.max(1,
-                    (EDITABLE_CATALOG.size() + SkinEditHolder.CONTENT_SIZE - 1)
+                    (Catalog.EDITABLE.size() + SkinEditHolder.CONTENT_SIZE - 1)
                             / SkinEditHolder.CONTENT_SIZE);
             int page = Math.max(0, Math.min(requestedPage, totalPages - 1));
             int fromIndex = page * SkinEditHolder.CONTENT_SIZE;
             int toIndex = Math.min(fromIndex + SkinEditHolder.CONTENT_SIZE,
-                    EDITABLE_CATALOG.size());
+                    Catalog.EDITABLE.size());
 
             Map<Integer, Material> slots = new LinkedHashMap<>();
             Map<Integer, Boolean> ownershipBySlot = new LinkedHashMap<>();
             for (int index = fromIndex; index < toIndex; index++) {
                 int slot = index - fromIndex;
-                Material material = EDITABLE_CATALOG.get(index);
+                Material material = Catalog.EDITABLE.get(index);
                 slots.put(slot, material);
                 ownershipBySlot.put(slot, owned.contains(material));
             }
@@ -151,12 +211,7 @@ public final class SkinEditCommand implements CommandExecutor {
     private static ItemStack catalogItem(Material material, boolean owned, boolean selected) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        Component status = owned
-                ? Component.text("已拥有", NamedTextColor.GREEN, TextDecoration.BOLD)
-                : Component.text("未拥有", NamedTextColor.GRAY);
-        meta.displayName(SkinSelectCommand.itemComponent(Component.empty()
-                .append(status)
-                .append(Component.text(" " + material.name(), NamedTextColor.WHITE))));
+        meta.displayName(SkinItemComponents.adminCatalogName(material, owned));
         if (material == Material.CUT_SANDSTONE) {
             meta.lore(List.of(
                     SkinSelectCommand.itemComponent(Component.text(
@@ -260,6 +315,15 @@ public final class SkinEditCommand implements CommandExecutor {
         }
         materials.sort(Comparator.comparing(Material::name));
         return List.copyOf(materials);
+    }
+
+    /** Defers Paper registry-backed material inspection until a live GUI/completion needs it. */
+    private static final class Catalog {
+        private static final List<Material> EDITABLE = buildCatalog();
+        private static final List<String> CLEARABLE_NAMES = EDITABLE.stream()
+                .filter(material -> material != Material.CUT_SANDSTONE)
+                .map(Material::name)
+                .toList();
     }
 
     private static void sendUsage(CommandSender sender) {

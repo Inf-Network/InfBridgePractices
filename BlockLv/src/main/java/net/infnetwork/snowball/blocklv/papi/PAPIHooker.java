@@ -1,7 +1,9 @@
 package net.infnetwork.snowball.blocklv.papi;
 
 import net.infnetwork.snowball.blocklv.BlockLv;
+import net.infnetwork.snowball.blocklv.api.LevelComponents;
 import net.infnetwork.snowball.blocklv.core.PointManger;
+import net.infnetwork.snowball.blocklv.text.LegacyComponentOutput;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.entity.Player;
 
@@ -17,6 +19,10 @@ extends PlaceholderExpansion {
         if (name.equals("lv")) {
             return String.valueOf(PointManger.getLv(player.getUniqueId()));
         }
+        if (name.equals("level_display")) {
+            return LegacyComponentOutput.serialize(
+                    LevelComponents.level(PointManger.getLv(player.getUniqueId())));
+        }
         if (name.equals("px")) {
             return String.valueOf(PointManger.getPx(player.getUniqueId()));
         }
@@ -24,39 +30,8 @@ extends PlaceholderExpansion {
             return String.valueOf(PointManger.getNextLvPx(PointManger.getLv(player.getUniqueId())) - PointManger.getPx(player.getUniqueId()));
         }
         if (name.equals("prefix")) {
-            long lv = PointManger.getLv(player.getUniqueId());
-            String str = String.valueOf(lv);
-            if (lv < 10L) {
-                return "\u00a78[\u00a78" + str + "\u00a78\u272b]";
-            }
-            if (lv < 100L) {
-                return "\u00a77[" + str + "\u272b]";
-            }
-            if (lv < 200L) {
-                return "\u00a7r[" + str + "\u272b]";
-            }
-            if (lv < 300L) {
-                return "\u00a76[" + str + "\u272b]";
-            }
-            if (lv < 400L) {
-                return "\u00a72[" + str + "\u272b]";
-            }
-            if (lv < 500L) {
-                return "\u00a7e[" + str + "\u272b]";
-            }
-            if (lv < 600L) {
-                return "\u00a73[" + str + "\u272b]";
-            }
-            if (lv < 700L) {
-                return "\u00a74[" + str + "\u272b]";
-            }
-            if (lv < 800L) {
-                return "\u00a78[" + str + "\u272b]";
-            }
-            if (lv < 900L) {
-                return "\u00a7a[" + str + "\u272b]";
-            }
-            return "\u00a7c[" + str + "\u272b]";
+            return LegacyComponentOutput.serialize(
+                    LevelComponents.badge(PointManger.getLv(player.getUniqueId())));
         }
         if (name.equals("kill")) {
             return String.valueOf(BlockLv.getInstance().getConfig().getInt("data." + player.getName() + ".kill"));

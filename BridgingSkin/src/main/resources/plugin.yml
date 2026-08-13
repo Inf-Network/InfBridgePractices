@@ -5,8 +5,6 @@ author: SakuraKooi
 api-version: '1.21'
 depend: ["BridgingAnalyzer", "Vault"]
 softdepend: ["WorldEdit", "FastAsyncWorldEdit"]
-libraries:
-  - org.postgresql:postgresql:42.7.4
 commands:
   bskin:
     description: Choose your skin.
@@ -16,8 +14,11 @@ commands:
     usage: /bskin-edit <edit|clear>
   bskin-crate:
     description: Manage block-skin lottery crates.
-    usage: /bskin-crate <set|remove|clear|info|list>
+    usage: /bskin-crate <set|remove|clear|clearall|info|list>
 permissions:
+  bridgingskin.skin.select:
+    description: Open the block-skin selector.
+    default: true
   bridgingSkin.admin:
     description: Edit or globally clear player block skins.
     default: op
